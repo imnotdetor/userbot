@@ -1,51 +1,70 @@
 from pyrogram import Client, filters
 from plugins.owner import owner_only
-from plugins.utils import auto_delete, log_error
+from plugins.utils import auto_delete, log_error, mark_plugin_loaded
 import os
 import random
-from plugins.utils import mark_plugin_loaded
+
 mark_plugin_loaded("neko.py")
 
-# 📁 neko media folder
-NEKO_DIR = "assets/neko"
+# =====================
+# NEKO FOLDERS MAP
+# =====================
+NEKO_FOLDERS = {
+    "neko": "assets/neko",
+    "nekokiss": "assets/nekokiss",
+    "nekohug": "assets/nekohug",
+    "nekofuck": "assets/nekofuck",
+    "nekoslap": "assets/nekoslap",
+}
 
-@Client.on_message(owner_only & filters.command("neko", "."))
-async def neko_cmd(client: Client, m):
+# =====================
+# NEKO HANDLER
+# =====================
+@Client.on_message(
+    owner_only & filters.command(list(NEKO_FOLDERS.keys()), ".")
+)
+async def neko_handler(client: Client, m):
     try:
-        # ❌ delete command immediately
-        await m.delete()
+        # ❌ delete command instantly
+        try:
+            await m.delete()
+        except:
+            pass
 
-        if not os.path.isdir(NEKO_DIR):
+        cmd = m.command[0].lower()
+        folder = NEKO_FOLDERS.get(cmd)
+
+        if not folder or not os.path.isdir(folder):
             msg = await client.send_message(
                 m.chat.id,
-                "❌ neko folder not found"
+                f"❌ Folder not found: {folder}"
             )
             await auto_delete(msg, 4)
             return
 
         files = [
-            f for f in os.listdir(NEKO_DIR)
+            f for f in os.listdir(folder)
             if f.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp"))
         ]
 
         if not files:
             msg = await client.send_message(
                 m.chat.id,
-                "❌ No neko files found"
+                f"❌ No media found in {cmd}"
             )
             await auto_delete(msg, 4)
             return
 
-        file_path = os.path.join(NEKO_DIR, random.choice(files))
+        file_path = os.path.join(folder, random.choice(files))
 
         sent = await client.send_document(
             chat_id=m.chat.id,
             document=file_path,
-            caption="😺 neko~"
+            caption=f"😺 {cmd}~"
         )
 
-        # ⏱ auto delete sent media
-        await auto_delete(sent, 10)
+        # ⏱ auto delete after **30 seconds**
+        await auto_delete(sent, 30)
 
     except Exception as e:
         await log_error(client, "neko.py", e)
