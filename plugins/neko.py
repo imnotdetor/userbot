@@ -6,9 +6,6 @@ import random
 
 mark_plugin_loaded("neko.py")
 
-# =====================
-# NEKO FOLDERS MAP
-# =====================
 NEKO_FOLDERS = {
     "neko": "assets/neko",
     "nekokiss": "assets/nekokiss",
@@ -17,15 +14,14 @@ NEKO_FOLDERS = {
     "nekoslap": "assets/nekoslap",
 }
 
-# =====================
-# NEKO HANDLER (NO REPLY MODE)
-# =====================
-@Client.on_message(
-    owner_only & filters.command(list(NEKO_FOLDERS.keys()), ".")
-)
+SUPPORTED_EXT = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4")
+
+
+@Client.on_message(owner_only & filters.command(
+    ["neko", "nekokiss", "nekohug", "nekofuck", "nekoslap"], "."
+))
 async def neko_handler(client: Client, m):
     try:
-        # ❌ delete command safely
         try:
             await m.delete()
         except:
@@ -37,38 +33,33 @@ async def neko_handler(client: Client, m):
         if not folder or not os.path.isdir(folder):
             msg = await client.send_message(
                 m.chat.id,
-                f"❌ Folder not found: {folder}"
+                f"❌ Folder missing for `{cmd}`"
             )
-            await auto_delete(msg, 4)
+            await auto_delete(msg, 5)
             return
 
         files = [
             f for f in os.listdir(folder)
-            if f.lower().endswith((
-                ".jpg", ".jpeg", ".png",
-                ".gif", ".webp",
-                ".mp4"
-            ))
+            if f.lower().endswith(SUPPORTED_EXT)
         ]
 
         if not files:
             msg = await client.send_message(
                 m.chat.id,
-                f"❌ No media found in {cmd}"
+                f"❌ No media found for `{cmd}`"
             )
-            await auto_delete(msg, 4)
+            await auto_delete(msg, 5)
             return
 
         file_path = os.path.join(folder, random.choice(files))
 
-        # ✅ NORMAL SEND (NO REPLY)
         sent = await client.send_document(
-            chat_id=m.chat.id,
-            document=file_path,
+            m.chat.id,
+            file_path,
             caption=f"😺 {cmd}~"
         )
 
-        # ⏱ auto delete after 30 seconds (minimum)
+        # auto delete after 30 sec
         await auto_delete(sent, 30)
 
     except Exception as e:
