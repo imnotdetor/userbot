@@ -2,6 +2,7 @@
 import asyncio
 import traceback
 from datetime import datetime
+from pyrogram import Client
 
 # 🔒 Error logs yahin jayenge (Saved Messages)
 ERROR_CHAT = "me"
@@ -10,16 +11,6 @@ ERROR_CHAT = "me"
 # PLUGIN HEALTH STORAGE
 # =====================
 PLUGIN_STATUS = {}
-"""
-Format:
-{
-  "plugin.py": {
-      "loaded": True,
-      "last_error": "error text or None",
-      "last_error_time": "time or None"
-  }
-}
-"""
 
 # =====================
 # HEALTH HELPERS
@@ -69,16 +60,7 @@ async def auto_delete(msg, seconds: int):
 # PLUGIN ERROR LOGGER
 # =====================
 async def log_error(client, plugin: str, error: Exception):
-    """
-    Send plugin error + traceback to Saved Messages
-    + print in terminal
-    + mark plugin unhealthy
-    """
-
-    # 🔥 terminal log
     print(f"[PLUGIN ERROR] {plugin}: {error}")
-
-    # 🧠 mark plugin error
     mark_plugin_error(plugin, error)
 
     try:
@@ -89,8 +71,45 @@ async def log_error(client, plugin: str, error: Exception):
             f"Error:\n{str(error)}\n\n"
             f"Traceback:\n{traceback.format_exc(limit=5)}"
         )
-
         await client.send_message(ERROR_CHAT, text)
-
     except Exception as e:
         print("[LOG_ERROR FAILED]", e)
+
+
+# =====================
+# BOT MANAGER (MULTI-BOT)
+# =====================
+RUNNING_BOTS = {}   # name -> Client instance
+
+async def start_bot(name: str, token: str, api_id: int, api_hash: str):
+    if name in RUNNING_BOTS:
+        raise RuntimeError("Bot already running")
+
+    try:
+        bot = Client(
+            name=f"bot_{name}",
+            bot_token=token,
+            api_id=api_id,
+            api_hash=api_hash,
+            plugins=dict(root="bot_plugins")
+        )
+
+        await bot.start()
+        RUNNING_BOTS[name] = bot
+
+    except Exception as e:
+        mark_plugin_error("bot_manager", e)
+        raise
+
+
+async def stop_bot(name: str):
+    bot = RUNNING_BOTS.get(name)
+    if not bot:
+        raise RuntimeError("Bot not running")
+
+    await bot.stop()
+    del RUNNING_BOTS[name]
+
+
+def list_running_bots():
+    return list(RUNNING_BOTS.keys())
