@@ -1,0 +1,17 @@
+# sessions
+*.session
+*.session-journal
+my_userbot_session.py
+
+# databases
+data.db
+data/*
+!data/.gitkeep
+
+# runtime
+saved_media/
+restart.json
+
+# python cache
+__pycache__/
+*.pyc
