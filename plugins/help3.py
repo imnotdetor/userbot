@@ -5,19 +5,19 @@ from plugins.utils import auto_delete, mark_plugin_loaded
 mark_plugin_loaded("help3.py")
 
 HELP3_TEXT = """
-USERBOT HELP 3 (VARS + BOT MANAGER)
+USERBOT HELP 3 (VARS • BOT MANAGER • NEKO)
 
 ====================
 VARIABLES (VARS)
 ====================
 
-.setvar | exm: .setvar SPAM_BOT_TOKEN 123456:ABC
+.setvar <KEY> <VALUE> | exm: .setvar SPAM_BOT_TOKEN 123456:ABC
 Save a variable (token / key / value)
 
-.getvar | exm: .getvar SPAM_BOT_TOKEN
+.getvar <KEY> | exm: .getvar SPAM_BOT_TOKEN
 Get saved variable value
 
-.delvar | exm: .delvar SPAM_BOT_TOKEN
+.delvar <KEY> | exm: .delvar SPAM_BOT_TOKEN
 Delete a saved variable
 
 .vars | exm: .vars
@@ -28,10 +28,10 @@ List all saved variables
 BOT MANAGER (MULTI BOT)
 ====================
 
-.startbot | exm: .startbot spam SPAM_BOT_TOKEN
+.startbot <name> <VAR_KEY> | exm: .startbot spam SPAM_BOT_TOKEN
 Start a bot using saved token
 
-.stopbot | exm: .stopbot spam
+.stopbot <name> | exm: .stopbot spam
 Stop a running bot
 
 .bots | exm: .bots
@@ -39,19 +39,54 @@ Show all running bots
 
 
 ====================
+NEKO FUN COMMANDS
+====================
+
+.neko | exm: .neko
+Random neko image / gif
+
+.nekokiss | exm: .nekokiss
+Random neko kiss gif
+
+.nekohug | exm: .nekohug
+Random neko hug gif
+
+.nekoslap | exm: .nekoslap
+Random neko slap gif
+
+.nekofuck | exm: .nekofuck
+Random neko adult gif
+
+• Reply / without reply — both work  
+• Media auto deletes after 30 seconds  
+• Files picked randomly from assets folder  
+
+
+====================
+ERROR & HEALTH SYSTEM
+====================
+
+• Automatic error logging is ENABLED  
+• Errors are sent to Saved Messages  
+• Plugin health is tracked automatically  
+
+Check broken plugins:
+.help broken
+
+
+====================
 NOTES
 ====================
 
-• Tokens are stored safely in data/vars.json  
-• Bot name is NOT the key  
-• Key = variable name  
+• All commands are owner-only  
+• Vars are stored in data/vars.json  
+• Error logs are NOT deleted automatically  
+• Key ≠ Bot name  
 • Bot name = running bot label  
 
 Example flow:
 .setvar SPAM_BOT_TOKEN <token>
 .startbot spam SPAM_BOT_TOKEN
-
-All commands are owner-only
 """
 
 @Client.on_message(owner_only & filters.command("help3", "."))
