@@ -1,12 +1,13 @@
 from pyrogram import Client, idle
-from config import API_ID, API_HASH
+from config import API_ID, API_HASH, STRING_SESSION
 import os, asyncio
 from plugins.utils import auto_delete
 
 print("🚀 Starting userbot...")
 
+# ✅ STRING SESSION BASED CLIENT
 app = Client(
-    "my_userbot",
+    name=STRING_SESSION,      # 👈 yahi magic hai
     api_id=API_ID,
     api_hash=API_HASH,
     plugins=dict(root="plugins")
@@ -15,7 +16,7 @@ app = Client(
 app.start()
 print("✅ Userbot started successfully")
 
-# 🔔 restart success
+# 🔔 restart success message
 if "RESTART_CHAT" in os.environ:
     chat_id = int(os.environ.pop("RESTART_CHAT"))
     try:
