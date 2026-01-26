@@ -3,6 +3,8 @@ import asyncio
 import traceback
 from datetime import datetime
 from pyrogram import Client
+import json
+import os
 
 # 🔒 Error logs yahin jayenge (Saved Messages)
 ERROR_CHAT = "me"
@@ -113,12 +115,11 @@ async def stop_bot(name: str):
 
 def list_running_bots():
     return list(RUNNING_BOTS.keys())
-    # =====================
+
+
+# =====================
 # VARS STORAGE (JSON)
 # =====================
-import json
-import os
-
 VARS_FILE = "data/vars.json"
 os.makedirs("data", exist_ok=True)
 
