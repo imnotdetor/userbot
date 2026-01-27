@@ -3,20 +3,15 @@
 *.session-journal
 my_userbot_session.py
 
-# databases
-data.db
-
-# ignore all data files
-data/*
-
-# but keep required base files
-!data/.gitkeep
-!data/vars.json
-
-# runtime
-saved_media/
-restart.json
-
 # python cache
 __pycache__/
 *.pyc
+
+# runtime data (DO NOT COMMIT)
+data/
+saved_media/
+assets/tmp/
+restart.json
+
+# env
+.env
