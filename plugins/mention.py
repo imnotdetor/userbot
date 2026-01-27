@@ -67,4 +67,6 @@ async def mention_cmd(client: Client, m):
         )
 
     except Exception as e:
-        await log_error(client, "mention.py", e)
+    from plugins.utils import mark_plugin_error
+    mark_plugin_error("mention.py", e)
+    await log_error(client, "mention.py", e)
