@@ -1,9 +1,29 @@
-from plugins.utils import log_error
 from pyrogram import Client, filters
 from plugins.owner import owner_only
+from plugins.utils import (
+    log_error,
+    mark_plugin_loaded,
+    mark_plugin_error,
+    register_help
+)
 import asyncio
 
+# =====================
+# PLUGIN INIT
+# =====================
+mark_plugin_loaded("id.py")
 
+register_help(
+    "info",
+    """
+.id
+Get your ID, chat ID, replied user ID, or channel ID.
+"""
+)
+
+# =====================
+# ID COMMAND
+# =====================
 @Client.on_message(owner_only & filters.command("id", prefixes="."))
 async def get_id(client: Client, m):
     try:
@@ -25,11 +45,16 @@ async def get_id(client: Client, m):
         # ↩️ REPLY CASE
         if m.reply_to_message:
             if m.reply_to_message.from_user:
-                text += f"\n↩️ Replied User ID: `{m.reply_to_message.from_user.id}`"
+                text += (
+                    f"\n↩️ Replied User ID: "
+                    f"`{m.reply_to_message.from_user.id}`"
+                )
             elif m.reply_to_message.sender_chat:
-                text += f"\n↩️ Replied Channel ID: `{m.reply_to_message.sender_chat.id}`"
+                text += (
+                    f"\n↩️ Replied Channel ID: "
+                    f"`{m.reply_to_message.sender_chat.id}`"
+                )
 
-        # 📤 send result
         result = await m.reply(text)
 
         # ❌ delete command after 1 sec
@@ -52,4 +77,5 @@ async def get_id(client: Client, m):
         asyncio.create_task(delete_result())
 
     except Exception as e:
+        mark_plugin_error("id.py", e)
         await log_error(client, "id.py", e)
