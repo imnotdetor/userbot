@@ -5,7 +5,7 @@ from plugins.utils import (
     start_bot, stop_bot, list_running_bots,
     auto_delete, log_error,
     mark_plugin_loaded, mark_plugin_error,
-    register_help        # 🔥 AUTO HELP
+    register_help
 )
 from config import API_ID, API_HASH
 
@@ -15,7 +15,7 @@ from config import API_ID, API_HASH
 mark_plugin_loaded("botmanager.py")
 
 # =====================
-# AUTO HELP REGISTER
+# AUTO HELP REGISTER (help4 compatible)
 # =====================
 register_help(
     "botmanager",
@@ -34,11 +34,18 @@ Delete bot token
 
 .bots
 List running bots
-
-• Multi-bot manager
-• Safe start / stop
 """
 )
+
+# =====================
+# SAFE DELETE
+# =====================
+async def safe_delete(m):
+    try:
+        await m.delete()
+    except:
+        pass
+
 
 # =====================
 # ADD BOT
@@ -46,10 +53,11 @@ List running bots
 @Client.on_message(owner_only & filters.command("addbot", "."))
 async def add_bot(client, m):
     try:
+        await safe_delete(m)
+
         if len(m.command) < 3:
             msg = await m.reply("Usage:\n.addbot <name> <token>")
-            await auto_delete(msg, 5)
-            return
+            return await auto_delete(msg, 5)
 
         name = m.command[1].lower()
         token = m.command[2]
@@ -70,18 +78,18 @@ async def add_bot(client, m):
 @Client.on_message(owner_only & filters.command("startbot", "."))
 async def start_bot_cmd(client, m):
     try:
+        await safe_delete(m)
+
         if len(m.command) < 2:
             msg = await m.reply("Usage:\n.startbot <name>")
-            await auto_delete(msg, 5)
-            return
+            return await auto_delete(msg, 5)
 
         name = m.command[1].lower()
         token = get_var(f"BOT_{name.upper()}")
 
         if not token:
             msg = await m.reply("❌ Bot not found")
-            await auto_delete(msg, 5)
-            return
+            return await auto_delete(msg, 5)
 
         await start_bot(name, token, API_ID, API_HASH)
 
@@ -99,10 +107,11 @@ async def start_bot_cmd(client, m):
 @Client.on_message(owner_only & filters.command("stopbot", "."))
 async def stop_bot_cmd(client, m):
     try:
+        await safe_delete(m)
+
         if len(m.command) < 2:
             msg = await m.reply("Usage:\n.stopbot <name>")
-            await auto_delete(msg, 5)
-            return
+            return await auto_delete(msg, 5)
 
         name = m.command[1].lower()
         await stop_bot(name)
@@ -121,6 +130,8 @@ async def stop_bot_cmd(client, m):
 @Client.on_message(owner_only & filters.command("bots", "."))
 async def bots_cmd(client, m):
     try:
+        await safe_delete(m)
+
         running = list_running_bots()
 
         if not running:
@@ -144,10 +155,11 @@ async def bots_cmd(client, m):
 @Client.on_message(owner_only & filters.command("delbot", "."))
 async def del_bot(client, m):
     try:
+        await safe_delete(m)
+
         if len(m.command) < 2:
             msg = await m.reply("Usage:\n.delbot <name>")
-            await auto_delete(msg, 5)
-            return
+            return await auto_delete(msg, 5)
 
         name = m.command[1].lower()
         del_var(f"BOT_{name.upper()}")
