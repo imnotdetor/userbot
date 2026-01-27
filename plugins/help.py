@@ -135,22 +135,12 @@ HELP_PLUGINS = {
 • Non-admin = limited mentions
 """,
 
-# ✅ NEW: BOT MANAGER HELP
 "botmanager": """
 .addbot <name> <token>
-exm: .addbot spam 123456:ABCDEF
-
 .startbot <name>
-exm: .startbot spam
-
 .stopbot <name>
-exm: .stopbot spam
-
 .delbot <name>
-exm: .delbot spam
-
 .bots
-exm: .bots
 """,
 
 "dev": """
@@ -200,27 +190,32 @@ async def help_cmd(client, m):
             await auto_delete(msg, 40)
             return
 
-        # .help broken
+        # =====================
+        # 🔥 FIXED: .help broken
+        # =====================
         if arg == "broken":
             health = get_plugin_health()
             broken = []
 
             for plugin, info in health.items():
-                if info.get("last_error"):
+                last_error = info.get("last_error")
+                last_time = info.get("last_error_time")
+
+                if last_error:
                     broken.append(
-                        f"{plugin}\n"
-                        f"Error: {info['last_error']}\n"
-                        f"Time: {info['last_error_time']}\n"
+                        f"❌ {plugin}\n"
+                        f"   Error: {last_error}\n"
+                        f"   Time: {last_time}\n"
                     )
 
             if not broken:
-                msg = await m.reply("All plugins are working fine ✅")
+                msg = await m.reply("✅ All plugins are working fine")
             else:
                 msg = await m.reply(
-                    "BROKEN PLUGINS\n\n" + "\n".join(broken)
+                    "🚨 BROKEN PLUGINS\n\n" + "\n".join(broken)
                 )
 
-            await auto_delete(msg, 10)
+            await auto_delete(msg, 15)
             return
 
         # .help <plugin>
