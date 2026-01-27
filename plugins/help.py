@@ -25,9 +25,11 @@ spam
 forward
 notes
 media
+autoreply
 games
 fun
 random
+auto
 mention
 info
 
@@ -45,9 +47,9 @@ HELP_PLUGINS = {
 
 "basic": """
 Basic Commands
-.alive  | exm: .alive
-.ping   | exm: .ping
-.restart| exm: .restart
+.alive    | exm: .alive
+.ping     | exm: .ping
+.restart  | exm: .restart
 """,
 
 "cleanup": """
@@ -97,11 +99,11 @@ Games
 
 "fun": """
 Fun Actions
-.slap   | Slap someone (reply / mention)
-.hug    | Hug someone
-.kiss   | Kiss someone
-.poke   | Poke someone
-.tickle| Tickle someone
+.slap     | Slap someone (reply / mention)
+.hug      | Hug someone
+.kiss     | Kiss someone
+.poke     | Poke someone
+.tickle  | Tickle someone
 """,
 
 "random": """
@@ -114,6 +116,28 @@ Random Fun
 .quote       | Random quote
 .insult      | Insult user
 .compliment  | Compliment user
+""",
+
+"auto": """
+Auto Reply
+.autoreply on        | Enable auto reply
+.autoreply off       | Disable auto reply
+
+.autoreplydelay 5    | Delay before reply (seconds)
+
+.setmorning text     | Set morning reply
+.setafternoon text  | Set afternoon reply
+.setevening text    | Set evening reply
+.setnight text      | Set night reply
+
+.awhitelist          | Allow user (reply)
+.awhitelistdel       | Remove allowed user (reply)
+
+.ablacklist          | Block user (reply)
+.ablacklistdel       | Remove blocked user (reply)
+
+• Replies based on time
+• Uses vars.json for storage
 """,
 
 "mention": """
