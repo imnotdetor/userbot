@@ -26,7 +26,6 @@ async def mention_cmd(client: Client, m):
         user_id = m.from_user.id
         text = m.text.split(None, 1)[1]
 
-        # delete command safely
         try:
             await m.delete()
         except:
@@ -40,11 +39,7 @@ async def mention_cmd(client: Client, m):
 
         async for msg in client.get_chat_history(chat_id, limit=300):
             u = msg.from_user
-            if not u:
-                continue
-            if u.is_bot:
-                continue
-            if u.id in seen:
+            if not u or u.is_bot or u.id in seen:
                 continue
 
             seen.add(u.id)
@@ -52,7 +47,9 @@ async def mention_cmd(client: Client, m):
             if u.username:
                 users.append(f"@{u.username}")
             else:
-                users.append(f"[{u.first_name}](tg://user?id={u.id})")
+                users.append(
+                    f'<a href="tg://user?id={u.id}">{u.first_name}</a>'
+                )
 
             if len(users) >= limit:
                 break
@@ -60,12 +57,12 @@ async def mention_cmd(client: Client, m):
         if not users:
             return
 
-        mention_text = text + "\n\n" + " ".join(users)
+        mention_text = f"{text}\n\n" + " ".join(users)
 
         await client.send_message(
             chat_id,
             mention_text,
-            parse_mode="markdown",          # 🔥 MOST IMPORTANT FIX
+            parse_mode="html",          # ✅ CORRECT
             disable_web_page_preview=True
         )
 
