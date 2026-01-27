@@ -7,7 +7,7 @@ from plugins.utils import (
     mark_plugin_error,
     set_var,
     get_var,
-    register_help        # 🔥 AUTO HELP
+    register_help
 )
 import asyncio
 from datetime import datetime, timedelta
@@ -21,7 +21,7 @@ mark_plugin_loaded("autoreply.py")
 # AUTO HELP REGISTER
 # =====================
 register_help(
-    "auto",
+    "autoreply",
     """
 .autoreply on | off
 Enable / disable auto reply
@@ -56,8 +56,8 @@ LAST_REPLY = {}   # user_id -> message_id
 TIME_TEXTS = {
     "morning": "☀️ Good morning!\nI will reply soon 😊",
     "afternoon": "🌤 Hello!\nI am busy right now.",
-    "evening": "🌙 Good evening!\nWill get back to you soon.",
-    "night": "🌌 It's late night.\nPlease text, I’ll reply later 🙏"
+    "evening": "🌆 Good evening!\nWill get back to you soon.",
+    "night": "🌙 It's late night.\nPlease text, I’ll reply later 🙏"
 }
 
 # =====================
@@ -75,15 +75,15 @@ def get_delay():
 
 
 def get_time_based_text():
-    # 🇮🇳 IST time
-    ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
-    hour = ist_time.hour
+    # 🇮🇳 IST TIME (FIXED)
+    ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+    hour = ist.hour
 
-    if 5 <= hour < 12:
+    if 5 <= hour <= 11:
         return get_var("AUTOREPLY_MORNING", TIME_TEXTS["morning"])
-    elif 12 <= hour < 18:
+    elif 12 <= hour <= 16:
         return get_var("AUTOREPLY_AFTERNOON", TIME_TEXTS["afternoon"])
-    elif 18 <= hour < 23:
+    elif 17 <= hour <= 20:
         return get_var("AUTOREPLY_EVENING", TIME_TEXTS["evening"])
     else:
         return get_var("AUTOREPLY_NIGHT", TIME_TEXTS["night"])
@@ -124,10 +124,10 @@ async def auto_reply_handler(client: Client, m):
             return
 
         # 🧹 delete old reply
-        old_msg_id = LAST_REPLY.get(user_id)
-        if old_msg_id:
+        old_id = LAST_REPLY.get(user_id)
+        if old_id:
             try:
-                await client.delete_messages(m.chat.id, old_msg_id)
+                await client.delete_messages(m.chat.id, old_id)
             except:
                 pass
 
