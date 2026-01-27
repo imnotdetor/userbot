@@ -158,3 +158,4 @@ async def spambot_handler(client: Client, m):
     except Exception as e:
         mark_plugin_error("spambot.py", e)
         await log_error(client, "spambot.py", e)
+
