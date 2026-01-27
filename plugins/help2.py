@@ -1,8 +1,18 @@
 from pyrogram import Client, filters
 from plugins.owner import owner_only
-from plugins.utils import auto_delete, mark_plugin_loaded
+from plugins.utils import (
+    auto_delete,
+    log_error,
+    mark_plugin_loaded,
+    mark_plugin_error,
+    register_help      # 🔥 AUTO HELP
+)
 
 mark_plugin_loaded("help2.py")
+
+# =====================
+# HELP SECTIONS
+# =====================
 
 HELP_SECTIONS = {
     "profile": """
@@ -48,6 +58,10 @@ Fun profile copy 😈
 """
 }
 
+# =====================
+# FULL HELP TEXT
+# =====================
+
 FULL_HELP = """
 USERBOT HELP 2 (EXTRA FEATURES)
 
@@ -64,18 +78,36 @@ All commands are owner-only
 Commands auto delete
 """
 
+# =====================
+# REGISTER AUTO HELP
+# =====================
+
+register_help(
+    "help2",
+    FULL_HELP + "\n".join(HELP_SECTIONS.values())
+)
+
+# =====================
+# HELP2 COMMAND
+# =====================
+
 @Client.on_message(owner_only & filters.command("help2", "."))
-async def help2_cmd(_, m):
+async def help2_cmd(client: Client, m):
     try:
-        await m.delete()
-    except:
-        pass
+        try:
+            await m.delete()
+        except:
+            pass
 
-    if len(m.command) > 1:
-        key = m.command[1].lower()
-        text = HELP_SECTIONS.get(key, "No such help section")
-    else:
-        text = FULL_HELP + "\n".join(HELP_SECTIONS.values())
+        if len(m.command) > 1:
+            key = m.command[1].lower()
+            text = HELP_SECTIONS.get(key, "No such help section ❌")
+        else:
+            text = FULL_HELP + "\n".join(HELP_SECTIONS.values())
 
-    msg = await m.reply(text)
-    await auto_delete(msg, 40)
+        msg = await m.reply(text)
+        await auto_delete(msg, 40)
+
+    except Exception as e:
+        mark_plugin_error("help2.py", e)
+        await log_error(client, "help2.py", e)
