@@ -26,6 +26,7 @@ async def mention_cmd(client: Client, m):
         user_id = m.from_user.id
         text = m.text.split(None, 1)[1]
 
+        # delete command safely
         try:
             await m.delete()
         except:
@@ -37,7 +38,7 @@ async def mention_cmd(client: Client, m):
         users = []
         seen = set()
 
-        async for msg in client.get_chat_history(chat_id, limit=200):
+        async for msg in client.get_chat_history(chat_id, limit=300):
             u = msg.from_user
             if not u:
                 continue
@@ -64,6 +65,7 @@ async def mention_cmd(client: Client, m):
         await client.send_message(
             chat_id,
             mention_text,
+            parse_mode="markdown",          # 🔥 MOST IMPORTANT FIX
             disable_web_page_preview=True
         )
 
