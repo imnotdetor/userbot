@@ -1,9 +1,31 @@
 from pyrogram import Client, filters
 from plugins.owner import owner_only
-from plugins.utils import auto_delete, log_error
+from plugins.utils import (
+    auto_delete,
+    log_error,
+    mark_plugin_loaded,
+    mark_plugin_error,   # 🔥 auto-heal
+    register_help        # 🔥 help4 auto-generate
+)
 import time, asyncio
-from plugins.utils import mark_plugin_loaded
+
+# 🔥 health system
 mark_plugin_loaded("stats.py")
+
+# 🔥 help4 registry
+register_help(
+    "info",
+    """
+.stats
+exm: .stats
+
+• Shows profile statistics
+• Groups / Channels count
+• Admin & Owner info
+• Session message count
+• Bot uptime
+"""
+)
 
 START_TIME = time.time()
 MSG_COUNT = 0
@@ -74,6 +96,8 @@ async def stats_handler(client: Client, m):
         await auto_delete(msg, 20)
 
     except Exception as e:
+        # 🔥 auto-heal + log
+        mark_plugin_error("stats.py", e)
         await log_error(client, "stats.py", e)
 
 
