@@ -1,10 +1,34 @@
 from pyrogram import Client, filters
 from plugins.owner import owner_only
-from plugins.utils import auto_delete, log_error, mark_plugin_loaded
+from plugins.utils import (
+    auto_delete,
+    log_error,
+    mark_plugin_loaded,
+    mark_plugin_error,
+    register_help
+)
 import os
 import random
 
+# 🔥 mark plugin loaded (health system)
 mark_plugin_loaded("neko.py")
+
+# 🔥 auto help registration (help4.py)
+register_help(
+    "neko",
+    """
+.neko
+.nekokiss
+.nekohug
+.nekoslap
+.nekofuck
+
+• Sends random neko media
+• Files loaded from assets folder
+• Auto delete after 30 seconds
+• Owner only
+"""
+)
 
 NEKO_FOLDERS = {
     "neko": "assets/neko",
@@ -17,9 +41,10 @@ NEKO_FOLDERS = {
 SUPPORTED_EXT = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4")
 
 
-@Client.on_message(owner_only & filters.command(
-    ["neko", "nekokiss", "nekohug", "nekofuck", "nekoslap"], "."
-))
+@Client.on_message(
+    owner_only &
+    filters.command(["neko", "nekokiss", "nekohug", "nekofuck", "nekoslap"], ".")
+)
 async def neko_handler(client: Client, m):
     try:
         try:
@@ -63,4 +88,6 @@ async def neko_handler(client: Client, m):
         await auto_delete(sent, 30)
 
     except Exception as e:
+        # 🔥 health + logging
+        mark_plugin_error("neko.py", e)
         await log_error(client, "neko.py", e)
