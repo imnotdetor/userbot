@@ -7,10 +7,35 @@ from plugins.utils import (
     all_vars,
     auto_delete,
     log_error,
-    mark_plugin_loaded
+    mark_plugin_loaded,
+    register_help          # 🔥 HELP4
 )
 
+# 🔥 mark plugin loaded (health system)
 mark_plugin_loaded("vars.py")
+
+# 🔥 HELP4 AUTO REGISTER
+register_help(
+    "vars",
+    """
+VARIABLES / CONFIG
+
+.setvar <KEY> <VALUE>
+exm: .setvar API_TOKEN 123456
+
+.getvar <KEY>
+exm: .getvar API_TOKEN
+
+.delvar <KEY>
+exm: .delvar API_TOKEN
+
+.vars
+exm: .vars
+
+• Variables are stored permanently
+• Used by botmanager, autoreply, etc.
+"""
+)
 
 # =====================
 # SET VAR
@@ -35,7 +60,7 @@ async def setvar_cmd(client, m):
 
         msg = await client.send_message(
             m.chat.id,
-            f"✅ Variable saved\n{key}"
+            f"✅ Variable saved\n`{key}`"
         )
         await auto_delete(msg, 5)
 
@@ -70,7 +95,7 @@ async def getvar_cmd(client, m):
         else:
             msg = await client.send_message(
                 m.chat.id,
-                f"{key} = {value}"
+                f"`{key}` = `{value}`"
             )
 
         await auto_delete(msg, 10)
@@ -100,7 +125,7 @@ async def delvar_cmd(client, m):
 
         msg = await client.send_message(
             m.chat.id,
-            f"🗑 Variable deleted: {key}"
+            f"🗑 Variable deleted: `{key}`"
         )
         await auto_delete(msg, 5)
 
@@ -126,9 +151,9 @@ async def vars_cmd(client, m):
             await auto_delete(msg, 5)
             return
 
-        text = "SAVED VARIABLES\n\n"
+        text = "📦 SAVED VARIABLES\n\n"
         for k in data:
-            text += f"• {k}\n"
+            text += f"• `{k}`\n"
 
         msg = await client.send_message(m.chat.id, text)
         await auto_delete(msg, 15)
