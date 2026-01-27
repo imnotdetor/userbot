@@ -3,8 +3,10 @@ import asyncio
 import traceback
 from datetime import datetime
 from pyrogram import Client
-import json
 import os
+
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
 
 # 🔒 Error logs yahin jayenge (Saved Messages)
 ERROR_CHAT = "me"
@@ -15,17 +17,6 @@ ERROR_CHAT = "me"
 PLUGIN_STATUS = {}
 DISABLED_PLUGINS = set()   # 🔥 auto-heal ke liye
 
-"""
-PLUGIN_STATUS format:
-{
-  "plugin.py": {
-      "loaded": True,
-      "last_error": "error text or None",
-      "last_error_time": "time or None"
-  }
-}
-"""
-
 # =====================
 # HEALTH HELPERS
 # =====================
@@ -35,7 +26,6 @@ def mark_plugin_loaded(plugin: str):
         "last_error": None,
         "last_error_time": None
     }
-    # agar plugin dobara load hua → auto heal
     DISABLED_PLUGINS.discard(plugin)
 
 
@@ -48,7 +38,6 @@ def mark_plugin_error(plugin: str, error: Exception):
         "%d %b %Y %I:%M %p"
     )
 
-    # 🔥 AUTO HEAL (disable faulty plugin)
     DISABLED_PLUGINS.add(plugin)
 
 
@@ -141,52 +130,56 @@ def list_running_bots():
 
 
 # =====================
-# VARS STORAGE (JSON)
+# VARS STORAGE (MongoDB)
 # =====================
-VARS_FILE = "data/vars.json"
-os.makedirs("data", exist_ok=True)
+MONGO_URI = os.getenv("MONGO_URI")
 
-_VARS = {}
+if not MONGO_URI:
+    raise RuntimeError("MONGO_URI not set in environment")
 
-def _load_vars():
-    global _VARS
-    if not os.path.exists(VARS_FILE):
-        _VARS = {}
-        return
+try:
+    mongo = MongoClient(MONGO_URI)
+    db = mongo["userbot"]
+    vars_col = db["vars"]
+except PyMongoError as e:
+    raise RuntimeError(f"MongoDB connection failed: {e}")
 
-    try:
-        with open(VARS_FILE, "r", encoding="utf-8") as f:
-            _VARS = json.load(f)
-            if not isinstance(_VARS, dict):
-                _VARS = {}
-    except Exception as e:
-        print("[VARS LOAD ERROR]", e)
-        _VARS = {}
-
-def save_vars():
-    try:
-        with open(VARS_FILE, "w", encoding="utf-8") as f:
-            json.dump(_VARS, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        print("[VARS SAVE ERROR]", e)
 
 def set_var(key: str, value: str):
-    _VARS[key] = value
-    save_vars()
+    try:
+        vars_col.update_one(
+            {"_id": key},
+            {"$set": {"value": value}},
+            upsert=True
+        )
+    except PyMongoError as e:
+        mark_plugin_error("vars", e)
+        raise
+
 
 def get_var(key: str, default=None):
-    return _VARS.get(key, default)
+    try:
+        doc = vars_col.find_one({"_id": key})
+        return doc["value"] if doc else default
+    except PyMongoError as e:
+        mark_plugin_error("vars", e)
+        return default
+
 
 def del_var(key: str):
-    if key in _VARS:
-        del _VARS[key]
-        save_vars()
+    try:
+        vars_col.delete_one({"_id": key})
+    except PyMongoError as e:
+        mark_plugin_error("vars", e)
+
 
 def all_vars():
-    return dict(_VARS)
+    try:
+        return {doc["_id"]: doc["value"] for doc in vars_col.find()}
+    except PyMongoError as e:
+        mark_plugin_error("vars", e)
+        return {}
 
-# 🔥 load vars at startup
-_load_vars()
 
 # =====================
 # HELP AUTO GENERATION (BASE)
@@ -194,11 +187,8 @@ _load_vars()
 HELP_REGISTRY = {}
 
 def register_help(plugin: str, text: str):
-    """
-    Plugin ke andar call karo:
-    register_help("mention", "...commands...")
-    """
     HELP_REGISTRY[plugin] = text
+
 
 def get_all_help():
     return HELP_REGISTRY
