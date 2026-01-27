@@ -175,6 +175,45 @@ NOTE:
 • Zyada spam se account restrict ho sakta hai
 """,
 
+    # ✅ ONLY ADDITION (NOTHING ELSE CHANGED)
+    "spambot": """
+🤖 SPAMBOT – BOT BASED SPAM SYSTEM
+
+Spambot ek alag bot ke through spam karta hai
+(isliye main user ID safe rehti hai)
+
+MAIN COMMANDS
+.spambot on
+→ Spam enable
+
+.spambot off
+→ Spam disable
+
+.spambot stop
+→ Running spam ko turant stop kare
+
+SPAM MODES
+.spambot 10
+→ Same group me spam
+
+.spambot 10 -100123456
+→ Target group me spam (chat id)
+
+.spambot 10 @groupusername
+→ Username based spam
+
+REPLY BASED
+Reply karke:
+.spambot 10
+→ Usi user ke reply par spam
+
+IMPORTANT NOTES
+• Spam bot alag account hota hai
+• Main ID ka risk kam hota hai
+• Flood limit ka dhyan rakho
+• Spam messages auto delete hote hain
+""",
+
     "cleanup": """
 🧹 CLEANUP – MESSAGES DELETE
 
@@ -307,7 +346,7 @@ async def explain_cmd(client: Client, m):
             pass
 
         # =====================
-        # .explain  → LIST
+        # .explain → LIST
         # =====================
         if len(m.command) < 2:
             text = "📘 AVAILABLE EXPLANATIONS\n\n"
