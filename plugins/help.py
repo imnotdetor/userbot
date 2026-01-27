@@ -1,231 +1,241 @@
 from pyrogram import Client, filters
 from plugins.owner import owner_only
-from plugins.utils import (
-    auto_delete,
-    get_plugin_health,
-    mark_plugin_loaded,
-    log_error
-)
+from plugins.utils import auto_delete, get_plugin_health, log_error, mark_plugin_loaded
 
 mark_plugin_loaded("help.py")
 
 # =====================
-# HELP MAIN
+# SHORT HELP (.help)
 # =====================
-
-HELP_MAIN = """
+HELP_SHORT = """
 USERBOT HELP
 
 Use:
-.help <plugin>
+.help all
 
 Available plugins:
 basic
 cleanup
 spam
 forward
-notes
 media
 games
 fun
 random
 auto
 mention
-botmanager
-dev
+vars
 info
-
-Extra:
-.help all
-.help broken
-.help2
-.help3
 """
 
 # =====================
-# PLUGIN WISE HELP
+# FULL HELP (.help all)
 # =====================
-
-HELP_PLUGINS = {
-
-"basic": """
+HELP_FULL = """
+====================
+BASIC
+====================
 .alive | exm: .alive
+Check if userbot is running
+
 .ping | exm: .ping
+Check response speed
+
 .restart | exm: .restart
-""",
+Restart the userbot
 
-"cleanup": """
-.purge | exm: (reply) .purge
-.clean [count] | exm: .clean 10
-.del | exm: (reply) .del
-.delall | exm: (reply user) .delall
-""",
+====================
+CLEANUP
+====================
+.purge | exm: .purge (reply)
+Delete messages from replied msg to command
 
-"spam": """
-.spam [count] [text] | exm: .spam 5 hi
-.delayspam [count] [delay] [text] | exm: .delayspam 5 1.5 hi
-.replyspam [count] | exm: (reply) .replyspam 10
-""",
+.clean | exm: .clean (count)
+Delete last X messages
 
-"forward": """
-.fwd <chat_id] | exm: .fwd -100123456
-.sfwd <chat_id] | exm: .sfwd -100123456
-.fwdhere | exm: (reply) .fwdhere
-.mfwd <chat_id] <count] | exm: .mfwd -100123456 5
-""",
+.del | exm: .del (reply)
+Delete single message
 
-"notes": """
-.setnote <name] <text] | exm: .setnote test hello
-.getnote <name] | exm: .getnote test
-.delnote <name] | exm: .delnote test
-""",
+.delall | exm: .delall (reply user)
+Delete all messages of a user
 
-"media": """
-.ss | exm: (reply view-once media) .ss
-.save | exm: (reply) .save
-""",
+====================
+SPAM
+====================
+.spam | exm: .spam (count) (text)
+Send same message multiple times
 
-"games": """
-.dice | exm: .dice
-.coin | exm: .coin
-.luck | exm: .luck
-""",
+.delayspam | exm: .delayspam (count) (delay) (text)
+Spam with delay between messages
 
-"fun": """
-.neko | exm: .neko
-.nekokiss | exm: .nekokiss
-.nekohug | exm: .nekohug
-.nekoslap | exm: .nekoslap
-.nekofuck | exm: .nekofuck
-""",
+.replyspam | exm: .replyspam (count)
+Spam reply to a message
 
-"random": """
+====================
+FORWARD
+====================
+.fwd | exm: .fwd (chat_id)
+Forward replied message
+
+.sfwd | exm: .sfwd (chat_id)
+Silent forward
+
+.fwdhere | exm: .fwdhere (reply)
+Forward message to same chat
+
+.mfwd | exm: .mfwd (chat_id) (count)
+Forward multiple messages
+
+====================
+MEDIA
+====================
+.ss | exm: .ss (reply view-once)
+Save view-once media
+
+.save | exm: .save (reply media)
+Save media to Saved Messages
+
+====================
+GAMES
+====================
+.dice  → Roll dice
+.coin  → Head / Tail
+.luck  → Luck percentage
+.rate  → Rate yourself
+.roll  → Random number
+
+====================
+FUN
+====================
+.slap | exm: .slap (reply / mention)
+Send slap reaction
+
+.hug | exm: .hug (reply / mention)
+Send hug reaction
+
+.kiss | exm: .kiss (reply / mention)
+Send kiss reaction
+
+.poke | exm: .poke (reply / mention)
+Poke someone
+
+.tickle | exm: .tickle (reply / mention)
+Tickle reaction
+
+====================
+RANDOM
+====================
 .predict | exm: .predict
+Predict something randomly
+
 .8ball | exm: .8ball
+Magic 8-ball answers
+
 .truth | exm: .truth
+Truth question
+
 .dare | exm: .dare
+Dare challenge
+
 .joke | exm: .joke
+Random joke
+
 .quote | exm: .quote
-.insult <user] | exm: .insult @user
-.compliment <user] | exm: .compliment @user
-""",
+Random quote
 
-"auto": """
-.autoreply on | exm: .autoreply on
-.autoreply off | exm: .autoreply off
+.insult | exm: .insult (user)
+Insult someone (fun)
 
-.autoreplydelay <sec> | exm: .autoreplydelay 5
+.compliment | exm: .compliment (user)
+Compliment someone
 
-.setmorning <text]
-.setafternoon <text>]
-.setevening <text]
-.setnight <text]
+====================
+AUTO REPLY
+====================
+.autoreply on/off
+Enable or disable auto reply
 
-.awhitelist | exm: (reply) .awhitelist
-.ablacklist | exm: (reply) .ablacklist
-.awhitelistdel | exm: (reply) .awhitelistdel
-.ablacklistdel | exm: (reply) .ablacklistdel
-""",
+.autoreplydelay (seconds)
+Set reply delay
 
-"mention": """
-.mention <text] | exm: .mention Hello everyone
+.setmorning (text)
+.setafternoon (text)
+.setevening (text)
+.setnight (text)
 
-• Mentions users using username / inline mention
-• Admin = more mentions
-• Non-admin = limited mentions
-""",
+.awhitelist | exm: (reply)
+Allow auto reply to user
 
-"botmanager": """
-.addbot <name] <token]
-.startbot <name]
-.stopbot <name]
-.delbot <name]
-.bots
-""",
+.ablacklist | exm: (reply)
+Block auto reply for user
 
-"dev": """
-.eval <code] | exm: .eval print("hi")
-.exec <cmd] | exm: .exec ls
-""",
+====================
+VARS
+====================
+.setvar | exm: .setvar KEY VALUE
+Save variable
 
-"info": """
-.id | exm: .id
-.stats | exm: .stats
+.getvar | exm: .getvar KEY
+Get variable
+
+.delvar | exm: .delvar KEY
+Delete variable
+
+.vars
+List all variables
+
+====================
+INFO
+====================
+.id
+Get IDs
+
+.stats
+Account statistics
+
+====================
+EXTRA
+====================
+.help broken
+Show broken plugins
 """
-}
 
 # =====================
-# HELP COMMAND
+# HELP HANDLER
 # =====================
-
 @Client.on_message(owner_only & filters.command("help", "."))
 async def help_cmd(client, m):
     try:
         await m.delete()
-    except:
-        pass
 
-    try:
-        # .help
         if len(m.command) == 1:
-            msg = await m.reply(HELP_MAIN)
-            await auto_delete(msg, 40)
+            msg = await m.reply(HELP_SHORT)
+            await auto_delete(msg, 30)
             return
 
         arg = m.command[1].lower()
 
-        # .help all
         if arg == "all":
-            text = "ALL COMMANDS\n\n"
-
-            for name, section in HELP_PLUGINS.items():
-                text += (
-                    "====================\n"
-                    f"{name.upper()}\n"
-                    "====================\n"
-                    f"{section.strip()}\n\n"
-                )
-
-            msg = await m.reply(text)
-            await auto_delete(msg, 40)
+            msg = await m.reply(HELP_FULL)
+            await auto_delete(msg, 90)
             return
 
-        # =====================
-        # 🔥 FIXED: .help broken
-        # =====================
         if arg == "broken":
             health = get_plugin_health()
             broken = []
 
-            for plugin, info in health.items():
-                last_error = info.get("last_error")
-                last_time = info.get("last_error_time")
-
-                if last_error:
+            for p, info in health.items():
+                if info.get("last_error"):
                     broken.append(
-                        f"❌ {plugin}\n"
-                        f"   Error: {last_error}\n"
-                        f"   Time: {last_time}\n"
+                        f"{p}\nError: {info['last_error']}\nTime: {info['last_error_time']}"
                     )
 
-            if not broken:
-                msg = await m.reply("✅ All plugins are working fine")
-            else:
-                msg = await m.reply(
-                    "🚨 BROKEN PLUGINS\n\n" + "\n".join(broken)
-                )
-
-            await auto_delete(msg, 15)
-            return
-
-        # .help <plugin>
-        text = HELP_PLUGINS.get(arg)
-        if not text:
-            msg = await m.reply("Unknown help section ❌")
-        else:
-            msg = await m.reply(text)
-
-        await auto_delete(msg, 40)
+            msg = await m.reply(
+                "All plugins working ✅"
+                if not broken else
+                "BROKEN PLUGINS\n\n" + "\n\n".join(broken)
+            )
+            await auto_delete(msg, 20)
 
     except Exception as e:
         await log_error(client, "help.py", e)
