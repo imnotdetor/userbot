@@ -1,13 +1,34 @@
 from pyrogram import Client, filters
 from plugins.owner import owner_only
-from plugins.utils import auto_delete, log_error, mark_plugin_loaded
+from plugins.utils import (
+    auto_delete,
+    log_error,
+    mark_plugin_loaded,
+    mark_plugin_error,
+    register_help          # 🔥 help4 auto-generate
+)
 from datetime import datetime
 import os, uuid
 
+# 🔥 health system
 mark_plugin_loaded("save_media.py")
+
+# 🔥 help4 auto registry
+register_help(
+    "media",
+    """
+.save | exm: (reply) .save
+
+• Saves replied media permanently
+• Works for photo / video / doc / audio / gif
+• Media sent to Saved Messages
+• Local disk auto-cleared
+"""
+)
 
 SAVE_DIR = "saved_media"
 os.makedirs(SAVE_DIR, exist_ok=True)
+
 
 @Client.on_message(
     owner_only &
@@ -57,7 +78,7 @@ async def manual_media_save(client: Client, m):
 
         path = os.path.join(SAVE_DIR, filename)
 
-        # ⬇️ download (disk temporary)
+        # ⬇️ download (temporary)
         await reply.download(file_name=path)
 
         # 📤 send to Saved Messages (permanent)
@@ -84,4 +105,6 @@ async def manual_media_save(client: Client, m):
         await auto_delete(msg, 4)
 
     except Exception as e:
+        # 🔥 auto-heal + health report
+        mark_plugin_error("save_media.py", e)
         await log_error(client, "save_media.py", e)
