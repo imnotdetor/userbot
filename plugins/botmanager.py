@@ -3,7 +3,8 @@ from plugins.owner import owner_only
 from plugins.utils import (
     set_var, get_var, del_var,
     start_bot, stop_bot, list_running_bots,
-    auto_delete, log_error, mark_plugin_loaded
+    auto_delete, log_error,
+    mark_plugin_loaded, mark_plugin_error
 )
 from config import API_ID, API_HASH
 
@@ -29,6 +30,7 @@ async def add_bot(client, m):
         await auto_delete(msg, 5)
 
     except Exception as e:
+        mark_plugin_error("botmanager.py", e)
         await log_error(client, "botmanager.py", e)
 
 
@@ -38,6 +40,11 @@ async def add_bot(client, m):
 @Client.on_message(owner_only & filters.command("startbot", "."))
 async def start_bot_cmd(client, m):
     try:
+        if len(m.command) < 2:
+            msg = await m.reply("Usage:\n.startbot <name>")
+            await auto_delete(msg, 5)
+            return
+
         name = m.command[1].lower()
         token = get_var(f"BOT_{name.upper()}")
 
@@ -52,6 +59,7 @@ async def start_bot_cmd(client, m):
         await auto_delete(msg, 5)
 
     except Exception as e:
+        mark_plugin_error("botmanager.py", e)
         await log_error(client, "botmanager.py", e)
 
 
@@ -61,6 +69,11 @@ async def start_bot_cmd(client, m):
 @Client.on_message(owner_only & filters.command("stopbot", "."))
 async def stop_bot_cmd(client, m):
     try:
+        if len(m.command) < 2:
+            msg = await m.reply("Usage:\n.stopbot <name>")
+            await auto_delete(msg, 5)
+            return
+
         name = m.command[1].lower()
         await stop_bot(name)
 
@@ -68,6 +81,7 @@ async def stop_bot_cmd(client, m):
         await auto_delete(msg, 5)
 
     except Exception as e:
+        mark_plugin_error("botmanager.py", e)
         await log_error(client, "botmanager.py", e)
 
 
@@ -90,6 +104,7 @@ async def bots_cmd(client, m):
         await auto_delete(msg, 8)
 
     except Exception as e:
+        mark_plugin_error("botmanager.py", e)
         await log_error(client, "botmanager.py", e)
 
 
@@ -99,6 +114,11 @@ async def bots_cmd(client, m):
 @Client.on_message(owner_only & filters.command("delbot", "."))
 async def del_bot(client, m):
     try:
+        if len(m.command) < 2:
+            msg = await m.reply("Usage:\n.delbot <name>")
+            await auto_delete(msg, 5)
+            return
+
         name = m.command[1].lower()
         del_var(f"BOT_{name.upper()}")
 
@@ -106,4 +126,5 @@ async def del_bot(client, m):
         await auto_delete(msg, 5)
 
     except Exception as e:
+        mark_plugin_error("botmanager.py", e)
         await log_error(client, "botmanager.py", e)
