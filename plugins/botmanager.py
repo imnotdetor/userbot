@@ -20,17 +20,17 @@ mark_plugin_loaded("botmanager.py")
 register_help(
     "botmanager",
     """
-.addbot <name> <token>
-Add a new bot
+.addbot [name] [token]
+Add a new bot token
 
-.startbot <name>
-Start a bot
+.startbot [name]
+Start a saved bot
 
-.stopbot <name>
+.stopbot [name]
 Stop a running bot
 
-.delbot <name>
-Delete bot token
+.delbot [name]
+Delete saved bot token
 
 .bots
 List running bots
@@ -56,7 +56,7 @@ async def add_bot(client, m):
         await safe_delete(m)
 
         if len(m.command) < 3:
-            msg = await m.reply("Usage:\n.addbot <name> <token>")
+            msg = await m.reply("Usage:\n.addbot [name] [token]")
             return await auto_delete(msg, 5)
 
         name = m.command[1].lower()
@@ -81,7 +81,7 @@ async def start_bot_cmd(client, m):
         await safe_delete(m)
 
         if len(m.command) < 2:
-            msg = await m.reply("Usage:\n.startbot <name>")
+            msg = await m.reply("Usage:\n.startbot [name]")
             return await auto_delete(msg, 5)
 
         name = m.command[1].lower()
@@ -110,7 +110,7 @@ async def stop_bot_cmd(client, m):
         await safe_delete(m)
 
         if len(m.command) < 2:
-            msg = await m.reply("Usage:\n.stopbot <name>")
+            msg = await m.reply("Usage:\n.stopbot [name]")
             return await auto_delete(msg, 5)
 
         name = m.command[1].lower()
@@ -158,7 +158,7 @@ async def del_bot(client, m):
         await safe_delete(m)
 
         if len(m.command) < 2:
-            msg = await m.reply("Usage:\n.delbot <name>")
+            msg = await m.reply("Usage:\n.delbot [name]")
             return await auto_delete(msg, 5)
 
         name = m.command[1].lower()
