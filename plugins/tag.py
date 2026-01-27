@@ -1,42 +1,43 @@
+import asyncio
 from pyrogram import Client, filters
 from plugins.owner import owner_only
-from plugins.utils import auto_delete, log_error, mark_plugin_loaded
-import asyncio
+from plugins.utils import auto_delete, log_error
 
-mark_plugin_loaded("tag.py")
 
 @Client.on_message(owner_only & filters.command("tag", "."))
 async def tag_user(client: Client, m):
     try:
-        # 🧹 delete command safely
         try:
             await m.delete()
         except:
             pass
 
-        if len(m.command) < 4:
+        if len(m.command) < 3:
             msg = await client.send_message(
                 m.chat.id,
-                "Usage: .tag <count> <text> <username>"
+                "Usage:\n.tag <count> <text> <@username>"
             )
-            await auto_delete(msg, 4)
+            await auto_delete(msg, 5)
             return
 
-        # 🔢 parse args
         count = int(m.command[1])
-        text = m.command[2]
-        username = m.command[3]
+
+        # full text after count
+        full = m.text.split(None, 2)[2]
+
+        # last word = username
+        username = full.split()[-1]
+        text = full.replace(username, "").strip()
 
         if not username.startswith("@"):
             username = "@" + username
 
-        # 🔁 tagging loop
         for _ in range(count):
             await client.send_message(
                 m.chat.id,
                 f"{text} {username}"
             )
-            await asyncio.sleep(1.2)  # safe delay (no flood)
+            await asyncio.sleep(1.3)
 
     except Exception as e:
         await log_error(client, "tag.py", e)
