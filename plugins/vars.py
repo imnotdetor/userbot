@@ -35,7 +35,8 @@ exm: .delvar AUTOREPLY_MORNING
 .vars
 List all saved variables
 
-• Variables are saved in data/vars.json
+• Variables are saved persistently (MongoDB)
+• Safe across restart & redeploy
 • Used by autoreply, botmanager, etc.
 """
 )
