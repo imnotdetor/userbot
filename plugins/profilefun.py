@@ -1,9 +1,30 @@
 from pyrogram import Client, filters
 from plugins.owner import owner_only
-from plugins.utils import auto_delete, log_error
+from plugins.utils import (
+    auto_delete,
+    log_error,
+    mark_plugin_loaded,
+    mark_plugin_error,
+    register_help
+)
 import asyncio
-from plugins.utils import mark_plugin_loaded
+
 mark_plugin_loaded("profilefun.py")
+
+# 🔥 auto help (help4.py)
+register_help(
+    "profilefun",
+    """
+.whoami
+• Shows your name & ID
+
+.status
+• Fake online status
+
+.hack (reply)
+• Fun hacking animation 😈
+"""
+)
 
 @Client.on_message(owner_only & filters.command(["whoami", "status", "hack"], "."))
 async def profile_fun(client, m):
@@ -14,7 +35,7 @@ async def profile_fun(client, m):
         except:
             pass
 
-        text = None  # ✅ VERY IMPORTANT (default)
+        text = None  # ✅ VERY IMPORTANT
 
         cmd = m.command[0].lower()
 
@@ -73,4 +94,6 @@ async def profile_fun(client, m):
         await auto_delete(msg, 6)
 
     except Exception as e:
+        # 🔥 auto-heal + health update
+        mark_plugin_error("profilefun.py", e)
         await log_error(client, "profilefun.py", e)
