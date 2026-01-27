@@ -12,11 +12,8 @@ STYLES = {
     "italic": lambda t: f"__{t}__",
     "mono": lambda t: f"`{t}`",
     "strike": lambda t: f"~~{t}~~",
-    "underline": lambda t: f"<u>{t}</u>",
     "spoiler": lambda t: f"||{t}||",
-    "emoji": lambda t: " ".join(
-        f"{c}️⃣" if c.isdigit() else f"{c}⃣" for c in t
-    ),
+    "emoji": lambda t: " ".join(f"{c}️⃣" for c in t if c.isalnum()),
     "space": lambda t: " ".join(list(t)),
 }
 
@@ -26,17 +23,14 @@ STYLES = {
 @Client.on_message(owner_only & filters.command(list(STYLES.keys()), "."))
 async def style_handler(client: Client, m):
     try:
-        await m.delete()
-
+        # ⚠️ delete baad me, pehle kaam hone do
         if len(m.command) < 2:
-            msg = await client.send_message(
-                m.chat.id,
-                "❌ Usage:\n"
+            msg = await m.reply(
+                "Usage:\n"
                 ".bold text\n"
                 ".italic text\n"
                 ".mono text\n"
                 ".strike text\n"
-                ".underline text\n"
                 ".spoiler text\n"
                 ".emoji text\n"
                 ".space text"
@@ -49,20 +43,14 @@ async def style_handler(client: Client, m):
 
         styled = STYLES[cmd](text)
 
-        # underline needs HTML, others don't
-        if cmd == "underline":
-            msg = await client.send_message(
-                m.chat.id,
-                styled,
-                parse_mode="HTML"
-            )
-        else:
-            msg = await client.send_message(
-                m.chat.id,
-                styled
-            )
-
+        msg = await m.reply(styled)
         await auto_delete(msg, 40)
+
+        # command delete LAST me
+        try:
+            await m.delete()
+        except:
+            pass
 
     except Exception as e:
         await log_error(client, "styletext.py", e)
