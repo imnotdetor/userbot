@@ -27,12 +27,12 @@ register_help(
 .delvar KEY
 .vars
 
-[Test Mode – owner_only disabled]
+(TEST MODE – no owner check)
 """
 )
 
 # =====================
-# SET VAR (TEST)
+# SET VAR
 # =====================
 @Client.on_message(filters.command("setvar", prefixes="."))
 async def setvar_cmd(client: Client, m):
@@ -48,7 +48,7 @@ async def setvar_cmd(client: Client, m):
 
         set_var(key, value)
 
-        msg = await m.reply(f"✅ SAVED\n{key} = {value}")
+        msg = await m.reply(f"✅ SAVED `{key}`")
         await auto_delete(msg, 5)
 
     except Exception as e:
@@ -57,7 +57,7 @@ async def setvar_cmd(client: Client, m):
 
 
 # =====================
-# GET VAR (TEST)
+# GET VAR
 # =====================
 @Client.on_message(filters.command("getvar", prefixes="."))
 async def getvar_cmd(client: Client, m):
@@ -72,9 +72,9 @@ async def getvar_cmd(client: Client, m):
         value = get_var(key)
 
         if value is None:
-            msg = await m.reply("❌ Variable not found")
+            msg = await m.reply("❌ Not found")
         else:
-            msg = await m.reply(f"{key} = {value}")
+            msg = await m.reply(f"`{key}` = `{value}`")
 
         await auto_delete(msg, 10)
 
@@ -84,7 +84,7 @@ async def getvar_cmd(client: Client, m):
 
 
 # =====================
-# DELETE VAR (TEST)
+# DELETE VAR
 # =====================
 @Client.on_message(filters.command("delvar", prefixes="."))
 async def delvar_cmd(client: Client, m):
@@ -98,7 +98,7 @@ async def delvar_cmd(client: Client, m):
         key = m.command[1].upper()
         del_var(key)
 
-        msg = await m.reply(f"🗑 Deleted: {key}")
+        msg = await m.reply(f"🗑 DELETED `{key}`")
         await auto_delete(msg, 5)
 
     except Exception as e:
@@ -107,7 +107,7 @@ async def delvar_cmd(client: Client, m):
 
 
 # =====================
-# LIST VARS (TEST)
+# LIST VARS
 # =====================
 @Client.on_message(filters.command("vars", prefixes="."))
 async def vars_cmd(client: Client, m):
@@ -117,12 +117,12 @@ async def vars_cmd(client: Client, m):
         data = all_vars()
 
         if not data:
-            msg = await m.reply("📭 No variables saved")
+            msg = await m.reply("No vars found")
             return await auto_delete(msg, 5)
 
         text = "📦 VARIABLES\n\n"
-        for k, v in data.items():
-            text += f"{k} = {v}\n"
+        for k in data:
+            text += f"• `{k}`\n"
 
         msg = await m.reply(text)
         await auto_delete(msg, 15)
