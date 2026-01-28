@@ -1,0 +1,50 @@
+# ======================
+# Python
+# ======================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# ======================
+# Virtual env
+# ======================
+venv/
+.env
+.env.*
+
+# ======================
+# Telegram / Userbot
+# ======================
+session.session
+*.session
+*.session-journal
+
+# ======================
+# Media & temp files
+# ======================
+saved_media/
+assets/tmp/
+downloads/
+*.mp4
+*.jpg
+*.png
+*.gif
+
+# ======================
+# Logs
+# ======================
+logs/
+
+# ======================
+# OS files
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# IDE
+# ======================
+.vscode/
+.idea/
