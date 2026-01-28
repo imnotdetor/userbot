@@ -1,9 +1,6 @@
 # database/notes.py
 
-from utils.mongo import db
-
-# Mongo collection
-_notes = db["notes"]
+from database import notes as _notes
 
 # =====================
 # SET NOTE
@@ -34,7 +31,7 @@ def del_note(name: str):
 # LIST ALL NOTES
 # =====================
 def all_notes():
-    notes = {}
+    result = {}
     for x in _notes.find():
-        notes[x["_id"]] = x.get("text")
-    return notes
+        result[x["_id"]] = x.get("text")
+    return result
