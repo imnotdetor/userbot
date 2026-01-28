@@ -1,23 +1,30 @@
 # plugins/utils.py
+# ==========================================================
+# CENTRAL UTILS LAYER (CRASH-PROOF)
+# Used by 30+ plugins
+# ==========================================================
+
 import asyncio
 import traceback
 import os
 from datetime import datetime, timedelta
-from pyrogram import Client
 
-# =====================
-# PLUGIN HEALTH
-# =====================
-PLUGIN_STATUS = {}
-DISABLED_PLUGINS = set()
+# ==========================================================
+# PLUGIN HEALTH SYSTEM
+# ==========================================================
+
+PLUGIN_STATUS = {}        # plugin_name -> info
+DISABLED_PLUGINS = set() # auto-disable on error
+
 
 def mark_plugin_loaded(plugin: str):
     PLUGIN_STATUS[plugin] = {
         "loaded": True,
         "last_error": None,
-        "last_error_time": None
+        "last_error_time": None,
     }
     DISABLED_PLUGINS.discard(plugin)
+
 
 def mark_plugin_error(plugin: str, error: Exception):
     PLUGIN_STATUS.setdefault(plugin, {})
@@ -27,66 +34,65 @@ def mark_plugin_error(plugin: str, error: Exception):
     )
     DISABLED_PLUGINS.add(plugin)
 
-def is_plugin_disabled(plugin: str):
+
+def is_plugin_disabled(plugin: str) -> bool:
     return plugin in DISABLED_PLUGINS
+
 
 def get_plugin_health():
     return PLUGIN_STATUS
 
 
-# =====================
-# SAFE DELETE
-# =====================
+# ==========================================================
+# SAFE MESSAGE HELPERS
+# ==========================================================
+
 async def safe_delete(msg):
     try:
-        await msg.delete()
+        if msg:
+            await msg.delete()
     except:
         pass
 
+
 async def auto_delete(msg, seconds: int):
     try:
+        if not msg:
+            return
         await asyncio.sleep(seconds)
         await msg.delete()
     except:
         pass
 
 
-# =====================
-# ERROR LOGGER
-# =====================
+# ==========================================================
+# GLOBAL ERROR LOGGER (NEVER CRASHES)
+# ==========================================================
+
 async def log_error(client, plugin: str, error: Exception):
     print(f"[PLUGIN ERROR] {plugin}: {error}")
     mark_plugin_error(plugin, error)
 
     try:
         text = (
-            "PLUGIN ERROR\n\n"
+            "🚨 PLUGIN ERROR\n\n"
             f"Plugin: {plugin}\n"
             f"Time: {datetime.now().strftime('%d %b %Y %I:%M %p')}\n\n"
             f"Error:\n{str(error)}\n\n"
             f"Traceback:\n{traceback.format_exc(limit=5)}"
         )
-        await client.send_message("me", text)
-    except:
-        pass
+        if client:
+            await client.send_message("me", text)
+    except Exception as e:
+        print("[ERROR LOGGER FAILED]", e)
 
 
-# =====================
-# HELP REGISTRY (STRING BASED)
-# =====================
-HELP_REGISTRY = {}
+# ==========================================================
+# MONGO (OPTIONAL / SAFE)
+# ==========================================================
 
-def register_help(plugin: str, text: str):
-    HELP_REGISTRY[plugin.lower()] = text.strip()
-
-def get_all_help():
-    return HELP_REGISTRY
-
-
-# =====================
-# OPTIONAL MONGO STORAGE
-# =====================
 mongo = None
+db = None
 vars_col = None
 
 MONGO_URI = os.getenv("MONGO_URI")
@@ -99,37 +105,77 @@ if MONGO_URI:
         vars_col = db["vars"]
         print("✅ MongoDB connected")
     except Exception as e:
-        print("⚠️ Mongo disabled:", e)
+        mongo = None
+        db = None
+        vars_col = None
+        print("⚠️ MongoDB disabled:", e)
+
 
 def set_var(key: str, value: str):
     if not vars_col:
         return
-    vars_col.update_one(
-        {"_id": key},
-        {"$set": {"value": value}},
-        upsert=True
-    )
+    try:
+        vars_col.update_one(
+            {"_id": key},
+            {"$set": {"value": value}},
+            upsert=True,
+        )
+    except Exception as e:
+        mark_plugin_error("vars", e)
+
 
 def get_var(key: str, default=None):
     if not vars_col:
         return default
-    doc = vars_col.find_one({"_id": key})
-    return doc["value"] if doc else default
+    try:
+        doc = vars_col.find_one({"_id": key})
+        return doc["value"] if doc else default
+    except Exception as e:
+        mark_plugin_error("vars", e)
+        return default
+
 
 def del_var(key: str):
-    if vars_col:
+    if not vars_col:
+        return
+    try:
         vars_col.delete_one({"_id": key})
+    except Exception as e:
+        mark_plugin_error("vars", e)
+
 
 def all_vars():
     if not vars_col:
         return {}
-    return {doc["_id"]: doc["value"] for doc in vars_col.find()}
+    try:
+        return {doc["_id"]: doc["value"] for doc in vars_col.find()}
+    except Exception as e:
+        mark_plugin_error("vars", e)
+        return {}
 
 
-# =====================
-# 🔥 BOT MANAGER SUPPORT (FIX FOR ERROR)
-# =====================
-RUNNING_BOTS = {}
+def check_mongo_health():
+    if not mongo:
+        return {"ok": False, "error": "Mongo disabled"}
+    try:
+        mongo.admin.command("ping")
+        ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+        return {
+            "ok": True,
+            "time": ist.strftime("%d %b %Y %I:%M %p"),
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ==========================================================
+# BOT MANAGER SUPPORT (REQUIRED BY botmanager.py)
+# ==========================================================
+
+from pyrogram import Client
+
+RUNNING_BOTS = {}  # name -> Client instance
+
 
 async def start_bot(name: str, token: str, api_id: int, api_hash: str):
     if name in RUNNING_BOTS:
@@ -139,7 +185,8 @@ async def start_bot(name: str, token: str, api_id: int, api_hash: str):
         name=f"bot_{name}",
         bot_token=token,
         api_id=api_id,
-        api_hash=api_hash
+        api_hash=api_hash,
+        plugins=dict(root="bot_plugins"),
     )
 
     await bot.start()
@@ -157,3 +204,18 @@ async def stop_bot(name: str):
 
 def list_running_bots():
     return list(RUNNING_BOTS.keys())
+
+
+# ==========================================================
+# HELP REGISTRY (SECONDARY SYSTEM)
+# ==========================================================
+
+HELP_REGISTRY = {}  # plugin -> text
+
+
+def register_help(plugin: str, text: str):
+    HELP_REGISTRY[plugin] = text
+
+
+def get_all_help():
+    return HELP_REGISTRY
