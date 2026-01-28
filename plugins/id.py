@@ -1,3 +1,6 @@
+# plugins/id.py
+print("🔥 id.py LOADED 🔥")
+
 from pyrogram import Client, filters
 from plugins.owner import owner_only
 from plugins.utils import (
@@ -22,9 +25,9 @@ Get your ID, chat ID, replied user ID, or channel ID.
 )
 
 # =====================
-# ID COMMAND
+# ID COMMAND (USERBOT SAFE)
 # =====================
-@Client.on_message(owner_only & filters.command("id", "."))
+@Client.on_message(filters.me & owner_only & filters.command("id", "."))
 async def get_id(client: Client, m):
     try:
         text = "🆔 **ID INFO**\n\n"
@@ -39,7 +42,7 @@ async def get_id(client: Client, m):
             text += f"📌 Chat Type: `{m.chat.type}`\n"
 
         # 🔐 PRIVATE CHAT → OTHER USER
-        if m.chat.type == "private" and m.chat.id != m.from_user.id:
+        if m.chat and m.chat.type == "private" and m.chat.id != m.from_user.id:
             text += f"\n👤 Other User ID: `{m.chat.id}`"
 
         # ↩️ REPLY CASE
