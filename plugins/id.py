@@ -25,9 +25,13 @@ Get your ID, chat ID, replied user ID, or channel ID.
 )
 
 # =====================
-# ID COMMAND (USERBOT SAFE)
+# ID COMMAND (USERBOT SAFE ✅)
 # =====================
-@Client.on_message(filters.me & owner_only & filters.command("id", "."))
+@Client.on_message(
+    filters.me &
+    owner_only &
+    filters.command("id", prefixes=".")
+)
 async def get_id(client: Client, m):
     try:
         text = "🆔 **ID INFO**\n\n"
