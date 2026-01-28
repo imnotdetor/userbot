@@ -11,7 +11,7 @@ from database import settings
 print("✔ autoreply.py loaded")
 
 # =====================
-# AUTO HELP REGISTER
+# AUTO HELP
 # =====================
 register_help(
     "autoreply",
@@ -21,22 +21,21 @@ register_help(
     ".setafternoon TEXT\n"
     ".setevening TEXT\n"
     ".setnight TEXT\n\n"
-    ".awhitelist (reply)\n"
-    ".ablacklist (reply)\n"
-    ".awhitelistdel (reply)\n"
-    ".ablacklistdel (reply)\n\n"
     "• DM only\n"
-    "• Time based replies\n"
-    "• One reply per user"
+    "• Auto delete old reply\n"
+    "• Skip if owner replied recently"
 )
 
 # =====================
 # MEMORY
 # =====================
-LAST_REPLY = {}   # user_id -> datetime
+LAST_AUTOREPLY_MSG = {}    # user_id -> Message
+LAST_OWNER_REPLY = {}     # user_id -> datetime
+
+OWNER_GRACE = 120  # seconds
 
 # =====================
-# DEFAULT TIME TEXTS
+# DEFAULT TEXTS
 # =====================
 TIME_TEXTS = {
     "morning": "☀️ Good morning!\nI will reply soon 😊",
@@ -59,15 +58,6 @@ def set_var(key, value):
         upsert=True
     )
 
-def get_list(key):
-    raw = get_var(key, "")
-    if not raw:
-        return []
-    return [int(x) for x in raw.split(",") if x.isdigit()]
-
-def save_list(key, data):
-    set_var(key, ",".join(str(x) for x in data))
-
 # =====================
 # CORE HELPERS
 # =====================
@@ -83,7 +73,6 @@ def get_delay():
 def get_time_text():
     ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
     h = ist.hour
-
     if 5 <= h <= 11:
         return get_var("AUTOREPLY_MORNING", TIME_TEXTS["morning"])
     elif 12 <= h <= 16:
@@ -97,7 +86,7 @@ def get_time_text():
 # COMMANDS
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.autoreply (on|off)"))
-async def autoreply_toggle(e):
+async def toggle(e):
     if not is_owner(e):
         return
     await e.delete()
@@ -107,96 +96,49 @@ async def autoreply_toggle(e):
     await asyncio.sleep(4)
     await msg.delete()
 
-@bot.on(events.NewMessage(pattern=r"\.autoreplydelay (\d+)"))
-async def autoreply_delay(e):
-    if not is_owner(e):
-        return
-    await e.delete()
-    set_var("AUTOREPLY_DELAY", e.pattern_match.group(1))
-    msg = await e.respond("⏱ Delay updated")
-    await asyncio.sleep(4)
-    await msg.delete()
-
-@bot.on(events.NewMessage(pattern=r"\.set(morning|afternoon|evening|night)"))
-async def set_time_text(e):
-    if not is_owner(e):
-        return
-    await e.delete()
-    text = e.raw_text.split(None, 1)[1]
-    key = f"AUTOREPLY_{e.pattern_match.group(1).upper()}"
-    set_var(key, text)
-    msg = await e.respond("✅ Text updated")
-    await asyncio.sleep(4)
-    await msg.delete()
+# =====================
+# OWNER MANUAL REPLY TRACK
+# =====================
+@bot.on(events.NewMessage(outgoing=True))
+async def owner_reply_track(e):
+    if e.is_private:
+        LAST_OWNER_REPLY[e.chat_id] = datetime.utcnow()
 
 # =====================
-# WHITELIST / BLACKLIST
-# =====================
-@bot.on(events.NewMessage(pattern=r"\.a(white|black)list$"))
-async def add_list(e):
-    if not is_owner(e) or not e.is_reply:
-        return
-    await e.delete()
-    r = await e.get_reply_message()
-    key = "AUTOREPLY_WHITELIST" if "white" in e.raw_text else "AUTOREPLY_BLACKLIST"
-    data = get_list(key)
-    if r.sender_id not in data:
-        data.append(r.sender_id)
-        save_list(key, data)
-    msg = await e.respond("✅ User added")
-    await asyncio.sleep(4)
-    await msg.delete()
-
-@bot.on(events.NewMessage(pattern=r"\.a(white|black)listdel$"))
-async def remove_list(e):
-    if not is_owner(e) or not e.is_reply:
-        return
-    await e.delete()
-    r = await e.get_reply_message()
-    key = "AUTOREPLY_WHITELIST" if "white" in e.raw_text else "AUTOREPLY_BLACKLIST"
-    data = get_list(key)
-    if r.sender_id in data:
-        data.remove(r.sender_id)
-        save_list(key, data)
-    msg = await e.respond("🗑 User removed")
-    await asyncio.sleep(4)
-    await msg.delete()
-
-# =====================
-# AUTOREPLY LISTENER (DM)
+# AUTOREPLY LISTENER
 # =====================
 @bot.on(events.NewMessage(incoming=True))
 async def autoreply_listener(e):
     try:
-        if not e.is_private:
-            return
-        if is_owner(e):
-            # owner replied → reset autoreply state
-            LAST_REPLY.pop(e.chat_id, None)
+        if not e.is_private or is_owner(e):
             return
         if not is_enabled():
             return
 
         uid = e.sender_id
+        now = datetime.utcnow()
 
-        if uid in get_list("AUTOREPLY_BLACKLIST"):
+        # ⏱ skip if owner replied recently
+        last_owner = LAST_OWNER_REPLY.get(uid)
+        if last_owner and (now - last_owner).seconds < OWNER_GRACE:
             return
 
-        wl = get_list("AUTOREPLY_WHITELIST")
-        if wl and uid not in wl:
-            return
+        # 🧹 delete old autoreply
+        old = LAST_AUTOREPLY_MSG.get(uid)
+        if old:
+            try:
+                await old.delete()
+            except:
+                pass
 
-        if uid in LAST_REPLY:
-            return
-
+        # ⏳ delay
         delay = get_delay()
         if delay:
             await asyncio.sleep(delay)
 
-        text = get_time_text()
-        await e.reply(text)
-
-        LAST_REPLY[uid] = datetime.utcnow()
+        # 📤 send new autoreply
+        msg = await e.reply(get_time_text())
+        LAST_AUTOREPLY_MSG[uid] = msg
 
     except Exception as ex:
         await log_error(bot, "autoreply.py", ex)
