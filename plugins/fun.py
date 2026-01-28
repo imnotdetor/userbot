@@ -6,14 +6,29 @@ from telethon.tl.types import MessageEntityMention, MessageEntityTextMention
 from userbot import bot
 from utils.owner import is_owner
 from utils.logger import log_error
-
+from utils.help_registry import register_help
 from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 
-mark_plugin_loaded("forward.py")
 # ======================
 # PLUGIN LOAD
 # ======================
+mark_plugin_loaded("fun.py")
 print("✔ fun.py loaded")
+
+# ======================
+# AUTO HELP REGISTER
+# ======================
+register_help(
+    "fun",
+    ".slap\n"
+    ".hug\n"
+    ".kiss\n"
+    ".poke\n"
+    ".tickle\n\n"
+    "• Reply / mention based\n"
+    "• Fun action messages\n"
+    "• Auto delete after few seconds"
+)
 
 # ======================
 # ACTION DATA
@@ -142,5 +157,6 @@ async def fun_handler(e):
         await asyncio.sleep(6)
         await sent.delete()
 
-    except Exception:
-        await log_error(bot, "fun.py")
+    except Exception as ex:
+        mark_plugin_error("fun.py", ex)
+        await log_error(bot, "fun.py", ex)
