@@ -24,7 +24,7 @@ Get your ID, chat ID, replied user ID, or channel ID.
 # =====================
 # ID COMMAND
 # =====================
-@Client.on_message(owner_only & filters.command("id", prefixes="."))
+@Client.on_message(owner_only & filters.command("id", "."))
 async def get_id(client: Client, m):
     try:
         text = "🆔 **ID INFO**\n\n"
