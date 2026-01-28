@@ -196,14 +196,17 @@ def get_all_help():
 # =====================
 # MONGO HEALTH CHECK
 # =====================
+from datetime import timedelta
+
 def check_mongo_health():
     try:
         mongo.admin.command("ping")
+        ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
         return {
             "ok": True,
             "db": db.name,
             "collection": vars_col.name,
-            "time": datetime.now().strftime("%d %b %Y %I:%M %p")
+            "time": ist_time.strftime("%d %b %Y %I:%M %p")
         }
     except Exception as e:
         return {
