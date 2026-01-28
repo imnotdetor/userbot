@@ -1,8 +1,10 @@
+import os
 from pymongo import MongoClient
-from config import MONGO_URL
 
-client = MongoClient(MONGO_URL)
-db = client.userbot
+MONGO_URI = os.environ.get("MONGO_URI")
 
-settings = db.settings
-storage = db.storage
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+db = client["userbot"]
+
+settings = db["settings"]
+notes = db["notes"]
