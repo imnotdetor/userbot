@@ -8,8 +8,10 @@ from userbot import bot
 from utils.owner import is_owner
 from utils.logger import log_error
 from utils.help_registry import register_help
+from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 
 print("✔ save_media.py loaded")
+mark_plugin_loaded("save_media.py")
 
 # =====================
 # AUTO HELP REGISTER
@@ -38,36 +40,25 @@ async def manual_media_save(e):
         return
 
     try:
-        # ❌ delete command instantly
         try:
             await e.delete()
         except Exception:
             pass
 
         if not e.is_reply:
-            msg = await bot.send_message(
-                e.chat_id,
-                "❌ Reply to a media message"
-            )
+            msg = await bot.send_message(e.chat_id, "❌ Reply to a media message")
             await asyncio.sleep(5)
             await msg.delete()
             return
 
         reply = await e.get_reply_message()
-
-        # media detection
-        media = reply.media
-        if not media:
-            msg = await bot.send_message(
-                e.chat_id,
-                "❌ Reply to a media message"
-            )
+        if not reply.media:
+            msg = await bot.send_message(e.chat_id, "❌ Reply to a media message")
             await asyncio.sleep(5)
             await msg.delete()
             return
 
-        # 🔤 filename
-        filename = None
+        # filename
         if reply.file and reply.file.name:
             filename = reply.file.name
         else:
@@ -84,10 +75,8 @@ async def manual_media_save(e):
 
         path = os.path.join(SAVE_DIR, filename)
 
-        # ⬇️ download (temporary)
         await bot.download_media(reply, file=path)
 
-        # 📤 send to Saved Messages (permanent)
         await bot.send_file(
             "me",
             path,
@@ -98,18 +87,15 @@ async def manual_media_save(e):
             )
         )
 
-        # 🧹 AUTO CLEAR DISK
         try:
             os.remove(path)
         except Exception:
             pass
 
-        msg = await bot.send_message(
-            e.chat_id,
-            "✅ Saved to Saved Messages"
-        )
+        msg = await bot.send_message(e.chat_id, "✅ Saved to Saved Messages")
         await asyncio.sleep(4)
         await msg.delete()
 
-    except Exception:
-        await log_error(bot, "save_media.py")
+    except Exception as ex:
+        mark_plugin_error("save_media.py", ex)
+        await log_error(bot, "save_media.py", ex)
