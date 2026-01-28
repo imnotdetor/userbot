@@ -4,21 +4,19 @@ from telethon import events
 from userbot import bot
 from utils.owner import is_owner
 from utils.logger import log_error
-from utils.plugin_status import mark_plugin_error
-
 from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 
-mark_plugin_loaded("forward.py")
 # =====================
 # PLUGIN LOAD
 # =====================
+mark_plugin_loaded("forward.py")
 print("✔ forward.py loaded")
 
 
 # =====================
-# TARGET PARSER (FIX)
+# TARGET PARSER
 # =====================
-def parse_target(raw):
+def parse_target(raw: str):
     raw = raw.strip()
     if raw.lstrip("-").isdigit():
         return int(raw)
@@ -34,10 +32,7 @@ async def fwd(e):
         return
 
     try:
-        try:
-            await e.delete()
-        except:
-            pass
+        await e.delete()
 
         raw = e.pattern_match.group(1)
         if not raw:
@@ -50,9 +45,9 @@ async def fwd(e):
             return
 
         target = parse_target(raw)
-
         reply = await e.get_reply_message()
-        await reply.forward_to(target)
+
+        await bot.forward_messages(target, reply)
 
         done = await bot.send_message(e.chat_id, "✅ Forwarded")
         await asyncio.sleep(3)
@@ -72,19 +67,16 @@ async def silent_fwd(e):
         return
 
     try:
-        try:
-            await e.delete()
-        except:
-            pass
+        await e.delete()
 
         raw = e.pattern_match.group(1)
         if not raw:
             return
 
         target = parse_target(raw)
-
         reply = await e.get_reply_message()
-        await reply.forward_to(target)
+
+        await bot.forward_messages(target, reply)
 
     except Exception as ex:
         mark_plugin_error("forward.py", ex)
@@ -100,13 +92,10 @@ async def fwd_here(e):
         return
 
     try:
-        try:
-            await e.delete()
-        except:
-            pass
+        await e.delete()
 
         reply = await e.get_reply_message()
-        await reply.forward_to(e.chat_id)
+        await bot.forward_messages(e.chat_id, reply)
 
         done = await bot.send_message(e.chat_id, "✅ Forwarded here")
         await asyncio.sleep(3)
@@ -126,10 +115,7 @@ async def multi_fwd(e):
         return
 
     try:
-        try:
-            await e.delete()
-        except:
-            pass
+        await e.delete()
 
         args = (e.pattern_match.group(1) or "").split()
         if len(args) < 2 or not args[1].isdigit():
@@ -146,7 +132,6 @@ async def multi_fwd(e):
 
         reply = await e.get_reply_message()
         start_id = reply.id
-
         success = 0
 
         for msg_id in range(start_id, start_id + count):
@@ -158,7 +143,7 @@ async def multi_fwd(e):
                 )
                 success += 1
                 await asyncio.sleep(0.4)
-            except:
+            except Exception:
                 pass
 
         done = await bot.send_message(
