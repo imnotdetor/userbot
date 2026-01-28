@@ -1,12 +1,11 @@
 from pyrogram import Client, filters
-from plugins.owner import owner_only
 from plugins.utils import (
     auto_delete,
     get_plugin_health,
     mark_plugin_loaded,
     log_error
-from config import OWNER_ID
 )
+from config import OWNER_ID
 
 mark_plugin_loaded("help.py")
 
@@ -159,7 +158,7 @@ Info
 # =====================
 # HELP COMMAND
 # =====================
-@Client.on_message(owner_only & filters.command("help", "."))
+@Client.on_message(filters.command("help", ".") & filters.user(OWNER_ID))
 async def help_cmd(client, m):
     try:
         try:
