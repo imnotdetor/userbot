@@ -9,12 +9,15 @@ from plugins.utils import (
 )
 import asyncio
 import time
-import os
-import json
+
+# 🔥 Mongo access
+from plugins.utils import db
 
 mark_plugin_loaded("profilecopy.py")
 
-# 🔥 auto help (help4.py)
+# =====================
+# HELP4 AUTO REGISTER
+# =====================
 register_help(
     "profilecopy",
     """
@@ -33,20 +36,16 @@ register_help(
 
 .silentclone on/off
 
-• Profile backup is permanent
-• Clone auto-restores after time
-• Silent mode hides messages
+• Profile backup is permanent (MongoDB)
+• DP stored via Telegram file_id
+• Clone auto-restores
 """
 )
 
 # =====================
-# FILE STORAGE
+# MONGO COLLECTION
 # =====================
-DATA_DIR = "data"
-BACKUP_FILE = os.path.join(DATA_DIR, "profile_backup.json")
-DP_FILE = os.path.join(DATA_DIR, "profile_dp.jpg")
-
-os.makedirs(DATA_DIR, exist_ok=True)
+profile_col = db["profile_backup"]
 
 # =====================
 # GLOBAL STATE
@@ -68,69 +67,55 @@ async def get_user_bio(client, user_id):
 
 
 async def backup_profile(client, force=False):
-    if not os.path.exists(BACKUP_FILE):
-        force = True
+    doc = profile_col.find_one({"_id": "owner"})
 
-    if os.path.exists(BACKUP_FILE) and not force:
+    if doc and not force:
         return False
 
     me = await client.get_me()
     bio = await get_user_bio(client, me.id)
 
-    data = {
-        "first_name": me.first_name,
-        "last_name": me.last_name,
-        "bio": bio
-    }
-
-    with open(BACKUP_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
+    dp_file_id = None
     try:
         photos = await client.get_profile_photos("me", limit=1)
         if photos.total_count > 0:
-            file = await client.download_media(photos.photos[0].file_id)
-            if file:
-                os.replace(file, DP_FILE)
+            dp_file_id = photos.photos[0].file_id
     except:
         pass
 
+    profile_col.update_one(
+        {"_id": "owner"},
+        {"$set": {
+            "first_name": me.first_name,
+            "last_name": me.last_name,
+            "bio": bio,
+            "dp_file_id": dp_file_id,
+            "time": time.time()
+        }},
+        upsert=True
+    )
     return True
 
 
 async def restore_profile(client):
-    if not os.path.exists(BACKUP_FILE):
+    doc = profile_col.find_one({"_id": "owner"})
+    if not doc:
         return False
 
-    with open(BACKUP_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
     await client.update_profile(
-        first_name=data.get("first_name"),
-        last_name=data.get("last_name"),
-        bio=data.get("bio")
+        first_name=doc.get("first_name"),
+        last_name=doc.get("last_name"),
+        bio=doc.get("bio")
     )
 
-    if os.path.exists(DP_FILE):
+    dp = doc.get("dp_file_id")
+    if dp:
         try:
-            await client.set_profile_photo(photo=DP_FILE)
+            await client.set_profile_photo(dp)
         except:
             pass
 
     return True
-
-
-async def set_dp_from_user(client, user):
-    try:
-        photos = await client.get_profile_photos(user.id, limit=1)
-        if photos.total_count == 0:
-            return False
-
-        file = await client.download_media(photos.photos[0].file_id)
-        await client.set_profile_photo(photo=file)
-        return True
-    except:
-        return False
 
 
 # =====================
@@ -140,7 +125,6 @@ async def set_dp_from_user(client, user):
 async def backup_cmd(client, m):
     try:
         await m.delete()
-
         force = len(m.command) > 1 and m.command[1].lower() == "force"
         ok = await backup_profile(client, force)
 
@@ -231,132 +215,14 @@ async def copy_dp(client, m):
             return
 
         await backup_profile(client)
-        ok = await set_dp_from_user(client, user)
-
-        if not SILENT_MODE:
-            msg = await client.send_message(
-                m.chat.id,
-                "DP copied" if ok else "DP not accessible"
-            )
-            await auto_delete(msg, 3)
-
-    except Exception as e:
-        mark_plugin_error("profilecopy.py", e)
-        await log_error(client, "profilecopy.py", e)
-
-
-# =====================
-# SILENT CLONE
-# =====================
-@Client.on_message(owner_only & filters.command("silentclone", "."))
-async def silentclone_cmd(client, m):
-    global SILENT_MODE
-    try:
-        await m.delete()
-
-        if len(m.command) < 2 or m.command[1] not in ("on", "off"):
-            msg = await client.send_message(m.chat.id, "Usage:\n.silentclone on | off")
-            return await auto_delete(msg, 4)
-
-        SILENT_MODE = m.command[1] == "on"
-
-        msg = await client.send_message(
-            m.chat.id,
-            f"Silent clone {'ENABLED' if SILENT_MODE else 'DISABLED'}"
-        )
-        await auto_delete(msg, 3)
-
-    except Exception as e:
-        mark_plugin_error("profilecopy.py", e)
-        await log_error(client, "profilecopy.py", e)
-
-
-# =====================
-# CLONE
-# =====================
-@Client.on_message(owner_only & filters.command("clone", ".") & filters.reply)
-async def clone_cmd(client, m):
-    global CLONE_ACTIVE, CLONE_END_TIME
-    try:
-        await m.delete()
-
-        if len(m.command) < 2 or not m.command[1].isdigit():
-            msg = await client.send_message(m.chat.id, "Usage:\n(reply) .clone <seconds>")
-            return await auto_delete(msg, 4)
-
-        seconds = int(m.command[1])
-        user = m.reply_to_message.from_user
-        if not user:
+        photos = await client.get_profile_photos(user.id, limit=1)
+        if photos.total_count == 0:
             return
 
-        await backup_profile(client, force=False)
-        await copy_name(client, m)
-        await copy_bio(client, m)
-        await set_dp_from_user(client, user)
-
-        CLONE_ACTIVE = True
-        CLONE_END_TIME = time.time() + seconds
+        await client.set_profile_photo(photos.photos[0].file_id)
 
         if not SILENT_MODE:
-            msg = await client.send_message(
-                m.chat.id,
-                f"Profile cloned for {seconds} seconds"
-            )
-            await auto_delete(msg, 3)
-
-        await asyncio.sleep(seconds)
-        await restore_profile(client)
-
-        CLONE_ACTIVE = False
-        CLONE_END_TIME = 0
-
-    except Exception as e:
-        CLONE_ACTIVE = False
-        mark_plugin_error("profilecopy.py", e)
-        await log_error(client, "profilecopy.py", e)
-
-
-# =====================
-# CLONE STATUS
-# =====================
-@Client.on_message(owner_only & filters.command("clonestatus", "."))
-async def clone_status(client, m):
-    try:
-        await m.delete()
-
-        if not CLONE_ACTIVE:
-            msg = await client.send_message(m.chat.id, "No active clone")
-        else:
-            remaining = int(CLONE_END_TIME - time.time())
-            msg = await client.send_message(
-                m.chat.id,
-                f"Clone active\nTime left: {remaining}s"
-            )
-
-        await auto_delete(msg, 4)
-
-    except Exception as e:
-        mark_plugin_error("profilecopy.py", e)
-        await log_error(client, "profilecopy.py", e)
-
-
-# =====================
-# STEAL
-# =====================
-@Client.on_message(owner_only & filters.command("steal", ".") & filters.reply)
-async def steal_cmd(client, m):
-    try:
-        await m.delete()
-        user = m.reply_to_message.from_user
-        if not user:
-            return
-
-        await copy_name(client, m)
-        await copy_bio(client, m)
-        await set_dp_from_user(client, user)
-
-        if not SILENT_MODE:
-            msg = await client.send_message(m.chat.id, "Profile stolen 😈")
+            msg = await client.send_message(m.chat.id, "DP copied")
             await auto_delete(msg, 3)
 
     except Exception as e:
