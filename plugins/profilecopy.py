@@ -67,10 +67,14 @@ async def _apply_bio(client, user):
     await client.update_profile(bio=chat.bio or "")
 
 async def _apply_dp(client, user):
-    photos = await client.get_profile_photos(user.id, limit=1)
-    if photos.total_count == 0:
+    photos = []
+    async for p in client.get_chat_photos(user.id, limit=1):
+        photos.append(p)
+
+    if not photos:
         return False
-    file = await client.download_media(photos.photos[0].file_id)
+
+    file = await client.download_media(photos[0].file_id)
     await client.set_profile_photo(photo=file)
     os.remove(file)
     return True
@@ -86,10 +90,12 @@ async def backup_profile(client, force=False):
     chat = await client.get_chat(me.id)
 
     dp_msg_id = None
-    photos = await client.get_profile_photos("me", limit=1)
+    photos = []
+    async for p in client.get_chat_photos("me", limit=1):
+        photos.append(p)
 
-    if photos.total_count > 0:
-        file = await client.download_media(photos.photos[0].file_id)
+    if photos:
+        file = await client.download_media(photos[0].file_id)
         sent = await client.send_message("me", photo=file)
         dp_msg_id = sent.id
         os.remove(file)
