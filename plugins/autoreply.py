@@ -48,7 +48,8 @@ Set reply delay
 # =====================
 # MEMORY (per user)
 # =====================
-LAST_REPLY = {}   # user_id -> message_id
+LAST_REPLY = {}           # user_id -> autoreply message_id
+LAST_MANUAL_REPLY = {}   # user_id -> last manual reply time  ✅ FIX
 
 # =====================
 # DEFAULT TIME TEXTS
@@ -75,7 +76,7 @@ def get_delay():
 
 
 def get_time_based_text():
-    # 🇮🇳 IST TIME (FIXED)
+    # 🇮🇳 IST TIME
     ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
     hour = ist.hour
 
@@ -101,6 +102,16 @@ def save_list(name, data):
 
 
 # =====================
+# TRACK MANUAL REPLIES (FIX)
+# =====================
+@Client.on_message(filters.private & filters.me)
+async def track_manual_reply(client: Client, m):
+    if not m.chat or not m.chat.id:
+        return
+    LAST_MANUAL_REPLY[m.chat.id] = datetime.utcnow()
+
+
+# =====================
 # AUTO REPLY HANDLER (DM ONLY)
 # =====================
 @Client.on_message(filters.private & ~filters.bot & ~filters.me)
@@ -114,6 +125,12 @@ async def auto_reply_handler(client: Client, m):
 
         user_id = m.from_user.id
 
+        # 🛑 FIX: agar last 120 sec me manually reply kiya hai → autoreply skip
+        last_manual = LAST_MANUAL_REPLY.get(user_id)
+        if last_manual:
+            if datetime.utcnow() - last_manual < timedelta(seconds=120):
+                return
+
         blacklist = get_list("AUTOREPLY_BLACKLIST")
         whitelist = get_list("AUTOREPLY_WHITELIST")
 
@@ -123,7 +140,7 @@ async def auto_reply_handler(client: Client, m):
         if whitelist and user_id not in whitelist:
             return
 
-        # 🧹 delete old reply
+        # 🧹 delete old autoreply
         old_id = LAST_REPLY.get(user_id)
         if old_id:
             try:
