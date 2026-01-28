@@ -1,4 +1,5 @@
 from pyrogram import Client, filters
+import os
 from plugins.owner import owner_only
 from plugins.utils import (
     auto_delete,
@@ -111,10 +112,14 @@ async def restore_profile(client):
     )
 
     if data.get("dp_file_id"):
-        await client.set_profile_photo(photo=data["dp_file_id"])
+        file = await client.download_media(data["dp_file_id"])
+        await client.set_profile_photo(photo=file)
+        try:
+            os.remove(file)
+        except:
+            pass
 
     return True
-
 # =====================
 # DELETE BACKUP
 # =====================
@@ -139,7 +144,12 @@ async def copy_bio(client, user):
 
 async def copy_dp(client, user):
     async for p in client.get_chat_photos(user.id, limit=1):
-        await client.set_profile_photo(photo=p.file_id)
+        file = await client.download_media(p.file_id)
+        await client.set_profile_photo(photo=file)
+        try:
+            os.remove(file)
+        except:
+            pass
         return True
     return False
 
