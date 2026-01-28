@@ -1,25 +1,15 @@
 # plugins/utils.py
 import asyncio
 import traceback
-from datetime import datetime
-from pyrogram import Client
 import os
-
-from pymongo import MongoClient
-from pymongo.errors import PyMongoError
-
-# 🔒 Error logs yahin jayenge (Saved Messages)
-ERROR_CHAT = "me"
+from datetime import datetime, timedelta
 
 # =====================
-# PLUGIN HEALTH STORAGE
+# PLUGIN HEALTH
 # =====================
 PLUGIN_STATUS = {}
-DISABLED_PLUGINS = set()   # 🔥 auto-heal ke liye
+DISABLED_PLUGINS = set()
 
-# =====================
-# HEALTH HELPERS
-# =====================
 def mark_plugin_loaded(plugin: str):
     PLUGIN_STATUS[plugin] = {
         "loaded": True,
@@ -28,22 +18,16 @@ def mark_plugin_loaded(plugin: str):
     }
     DISABLED_PLUGINS.discard(plugin)
 
-
 def mark_plugin_error(plugin: str, error: Exception):
-    if plugin not in PLUGIN_STATUS:
-        PLUGIN_STATUS[plugin] = {"loaded": True}
-
+    PLUGIN_STATUS.setdefault(plugin, {})
     PLUGIN_STATUS[plugin]["last_error"] = str(error)
     PLUGIN_STATUS[plugin]["last_error_time"] = datetime.now().strftime(
         "%d %b %Y %I:%M %p"
     )
-
     DISABLED_PLUGINS.add(plugin)
-
 
 def is_plugin_disabled(plugin: str) -> bool:
     return plugin in DISABLED_PLUGINS
-
 
 def get_plugin_health():
     return PLUGIN_STATUS
@@ -58,10 +42,6 @@ async def safe_delete(msg):
     except:
         pass
 
-
-# =====================
-# AUTO DELETE MESSAGE
-# =====================
 async def auto_delete(msg, seconds: int):
     try:
         await asyncio.sleep(seconds)
@@ -71,7 +51,7 @@ async def auto_delete(msg, seconds: int):
 
 
 # =====================
-# PLUGIN ERROR LOGGER
+# ERROR LOGGER
 # =====================
 async def log_error(client, plugin: str, error: Exception):
     print(f"[PLUGIN ERROR] {plugin}: {error}")
@@ -79,137 +59,64 @@ async def log_error(client, plugin: str, error: Exception):
 
     try:
         text = (
-            "PLUGIN ERROR\n\n"
+            f"PLUGIN ERROR\n\n"
             f"Plugin: {plugin}\n"
             f"Time: {datetime.now().strftime('%d %b %Y %I:%M %p')}\n\n"
             f"Error:\n{str(error)}\n\n"
             f"Traceback:\n{traceback.format_exc(limit=5)}"
         )
-        await client.send_message(ERROR_CHAT, text)
-    except Exception as e:
-        print("[LOG_ERROR FAILED]", e)
+        await client.send_message("me", text)
+    except:
+        pass
 
 
 # =====================
-# BOT MANAGER (MULTI-BOT)
+# OPTIONAL MONGO (SAFE)
 # =====================
-RUNNING_BOTS = {}   # name -> Client instance
+mongo = None
+vars_col = None
 
-async def start_bot(name: str, token: str, api_id: int, api_hash: str):
-    if name in RUNNING_BOTS:
-        raise RuntimeError("Bot already running")
-
-    try:
-        bot = Client(
-            name=f"bot_{name}",
-            bot_token=token,
-            api_id=api_id,
-            api_hash=api_hash,
-            plugins=dict(root="bot_plugins")
-        )
-
-        await bot.start()
-        RUNNING_BOTS[name] = bot
-
-    except Exception as e:
-        mark_plugin_error("bot_manager", e)
-        raise
-
-
-async def stop_bot(name: str):
-    bot = RUNNING_BOTS.get(name)
-    if not bot:
-        raise RuntimeError("Bot not running")
-
-    await bot.stop()
-    del RUNNING_BOTS[name]
-
-
-def list_running_bots():
-    return list(RUNNING_BOTS.keys())
-
-
-# =====================
-# VARS STORAGE (MongoDB)
-# =====================
 MONGO_URI = os.getenv("MONGO_URI")
 
-if not MONGO_URI:
-    raise RuntimeError("MONGO_URI not set in environment")
-
-try:
-    mongo = MongoClient(MONGO_URI)
-    db = mongo["userbot"]
-    vars_col = db["vars"]
-except PyMongoError as e:
-    raise RuntimeError(f"MongoDB connection failed: {e}")
-
+if MONGO_URI:
+    try:
+        from pymongo import MongoClient
+        mongo = MongoClient(MONGO_URI)
+        db = mongo["userbot"]
+        vars_col = db["vars"]
+        print("✅ MongoDB connected")
+    except Exception as e:
+        print("⚠️ Mongo disabled:", e)
 
 def set_var(key: str, value: str):
-    try:
-        vars_col.update_one(
-            {"_id": key},
-            {"$set": {"value": value}},
-            upsert=True
-        )
-    except PyMongoError as e:
-        mark_plugin_error("vars", e)
-        raise
-
+    if not vars_col:
+        return
+    vars_col.update_one({"_id": key}, {"$set": {"value": value}}, upsert=True)
 
 def get_var(key: str, default=None):
-    try:
-        doc = vars_col.find_one({"_id": key})
-        return doc["value"] if doc else default
-    except PyMongoError as e:
-        mark_plugin_error("vars", e)
+    if not vars_col:
         return default
-
+    doc = vars_col.find_one({"_id": key})
+    return doc["value"] if doc else default
 
 def del_var(key: str):
-    try:
+    if vars_col:
         vars_col.delete_one({"_id": key})
-    except PyMongoError as e:
-        mark_plugin_error("vars", e)
-
 
 def all_vars():
-    try:
-        return {doc["_id"]: doc["value"] for doc in vars_col.find()}
-    except PyMongoError as e:
-        mark_plugin_error("vars", e)
+    if not vars_col:
         return {}
-
-
-# =====================
-# HELP AUTO GENERATION (BASE)
-# =====================
-HELP_REGISTRY = {}
-
-def register_help(plugin: str, text: str):
-    HELP_REGISTRY[plugin] = text
-
-
-def get_all_help():
-    return HELP_REGISTRY
-
-# =====================
-# MONGO HEALTH CHECK
-# =====================
-from datetime import timedelta
+    return {doc["_id"]: doc["value"] for doc in vars_col.find()}
 
 def check_mongo_health():
+    if not mongo:
+        return {"ok": False, "error": "Mongo disabled"}
     try:
         mongo.admin.command("ping")
-        ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
+        ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
         return {
             "ok": True,
-            "db": db.name,
-            "collection": vars_col.name,
-            "time": ist_time.strftime("%d %b %Y %I:%M %p")
+            "time": ist.strftime("%d %b %Y %I:%M %p")
         }
     except Exception as e:
-        return {
-            "ok": False,
-            "error": str(e)
-}
+        return {"ok": False, "error": str(e)}
