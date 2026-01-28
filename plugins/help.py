@@ -5,6 +5,7 @@ from plugins.utils import (
     get_plugin_health,
     mark_plugin_loaded,
     log_error
+from config import OWNER_ID
 )
 
 mark_plugin_loaded("help.py")
