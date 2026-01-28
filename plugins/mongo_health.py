@@ -5,53 +5,38 @@ from plugins.utils import (
     auto_delete,
     mark_plugin_loaded,
     mark_plugin_error,
-    log_error,
-    register_help
+    log_error
 )
 
-# =====================
-# PLUGIN LOAD
-# =====================
 mark_plugin_loaded("mongo_health.py")
 
-# =====================
-# HELP AUTO REGISTER
-# =====================
-register_help(
-    "mongo",
-    """
-.mongo
-Check MongoDB connection health
 
-Shows:
-• Connection status
-• Database name
-• Collection name
-• Last ping time
-"""
-)
-
-# =====================
-# MONGO HEALTH COMMAND
-# =====================
 @Client.on_message(owner_only & filters.command("mongo", "."))
 async def mongo_health_cmd(client: Client, m):
     try:
-        await m.delete()
+        try:
+            await m.delete()
+        except:
+            pass
 
-        status = check_mongo_health()
+        health = check_mongo_health()
 
-        if status["ok"]:
+        if health["ok"]:
             text = (
-                "🟢 **MongoDB Status: CONNECTED**\n\n"
-                f"📦 Database: `{status['db']}`\n"
-                f"📂 Collection: `{status['collection']}`\n"
-                f"⏱ Last Ping: `{status['time']}`"
+                "🟢 MONGO DB STATUS: CONNECTED\n\n"
+                f"Database: `{health['db']}`\n"
+                f"Collection: `{health['collection']}`\n"
+                f"Time: `{health['time']}`"
             )
         else:
             text = (
-                "🔴 **MongoDB Status: DISCONNECTED**\n\n"
-                f"Error:\n`{status['error']}`"
+                "🔴 MONGO DB STATUS: ERROR\n\n"
+                f"Reason:\n`{health['error']}`"
             )
 
-        msg = await m
+        msg = await m.reply(text)
+        await auto_delete(msg, 10)
+
+    except Exception as e:
+        mark_plugin_error("mongo_health.py", e)
+        await log_error(client, "mongo_health.py", e)
