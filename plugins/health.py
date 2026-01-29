@@ -1,33 +1,46 @@
 from telethon import events
+
 from userbot import bot
 from utils.owner import is_owner
-from utils.plugin_status import get_broken_plugins, all_ok
+from utils.plugin_status import get_broken_plugins, mark_plugin_loaded
 from utils.health import get_uptime, mongo_status
 
-@bot.on(events.NewMessage(pattern=r".health"))
-async def health(e):
-if not is_owner(e):
-return
+# =====================
+# PLUGIN LOAD
+# =====================
+mark_plugin_loaded("health.py")
+print("✔ health.py loaded")
 
-broken = get_broken_plugins()  
+# =====================
+# HEALTH COMMAND
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.health$"))
+async def health_handler(e):
+    if not is_owner(e):
+        return
 
-if not broken:  
-    text = (  
-        "🩺 Userbot Health\n\n"  
-        f"⏱ Uptime: {get_uptime()}\n"  
-        f"🗄 MongoDB: {mongo_status()}\n\n"  
-        "✅ All plugins working fine"  
-    )  
-    return await e.reply(text)  
+    broken = get_broken_plugins()
 
-text = (  
-    "🩺 Userbot Health\n\n"  
-    f"⏱ Uptime: {get_uptime()}\n"  
-    f"🗄 MongoDB: {mongo_status()}\n\n"  
-    "❌ Broken Plugins:\n"  
-)  
+    # ✅ ALL OK
+    if not broken:
+        text = (
+            "🩺 **Userbot Health**\n\n"
+            f"⏱ **Uptime:** {get_uptime()}\n"
+            f"🗄 **MongoDB:** {mongo_status()}\n\n"
+            "✅ **All plugins working fine**"
+        )
+        await e.reply(text)
+        return
 
-for name, info in broken.items():  
-    text += f"\n• {name}\n{info['error'][:800]}"  
+    # ❌ BROKEN PLUGINS
+    text = (
+        "🩺 **Userbot Health**\n\n"
+        f"⏱ **Uptime:** {get_uptime()}\n"
+        f"🗄 **MongoDB:** {mongo_status()}\n\n"
+        "❌ **Broken Plugins:**\n"
+    )
 
-await e.reply(text)
+    for name, info in broken.items():
+        text += f"\n• `{name}`\n{info['error'][:500]}"
+
+    await e.reply(text)
