@@ -1,10 +1,11 @@
-import os
-from pymongo import MongoClient
+# database.py
+# Single Mongo source: utils.mongo
 
-MONGO_URI = os.environ.get("MONGO_URI")
+from utils.mongo import mongo, db, settings, notes
 
-client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-db = client["userbot"]
-
-settings = db["settings"]
-notes = db["notes"]
+__all__ = [
+    "mongo",
+    "db",
+    "settings",
+    "notes"
+]
