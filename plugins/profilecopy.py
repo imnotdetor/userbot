@@ -183,8 +183,8 @@ async def backup_profile_cmd(e):
         return
 
     me = await bot.get_me()
-    full = await bot(GetFullUserRequest(me.id))
-    bio = full.about or ""
+full = await bot(GetFullUserRequest(me.id))
+bio = full.full_user.about or ""
 
     dp_msg_id = None
     async for p in bot.iter_profile_photos(me.id, limit=1):
