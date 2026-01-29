@@ -10,7 +10,7 @@ from utils.owner import is_owner
 from utils.help_registry import register_help
 from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 from utils.logger import log_error
-from utils.mongo import mongo  # Mongo client
+from utils.mongo import mongo
 
 PLUGIN_NAME = "antipm.py"
 
@@ -32,7 +32,6 @@ SPAM_WINDOW = 10  # seconds
 # =====================
 if mongo is None:
     print("⚠️ MongoDB not connected — antipm disabled")
-    db = None
     col_users = None
     col_state = None
 else:
@@ -41,20 +40,30 @@ else:
     col_state = db["antipm_state"]
 
 # =====================
-# STATE HELPERS
+# STATE HELPERS (SAFE)
 # =====================
 def get_state():
-    if col_state is None:
-        return {"enabled": True, "silent": False}
+    base = {"enabled": True, "silent": False}
 
-    d = col_state.find_one({"_id": "state"})
-    return d if d else {"enabled": True, "silent": False}
+    if col_state is None:
+        return base
+
+    d = col_state.find_one({"_id": "state"}) or {}
+    base.update(d)
+
+    # 🔧 auto-fix missing keys
+    col_state.update_one(
+        {"_id": "state"},
+        {"$set": base},
+        upsert=True
+    )
+
+    return base
 
 
 def set_state(key, value):
     if col_state is None:
         return
-
     col_state.update_one(
         {"_id": "state"},
         {"$set": {key: value}},
@@ -96,8 +105,7 @@ register_help(
     "• MongoDB based Anti-PM\n"
     "• Warning replace system\n"
     "• Spam detection\n"
-    "• DM only\n"
-    "• Owner safe"
+    "• DM only"
 )
 
 # =====================
@@ -111,11 +119,7 @@ async def toggle_antipm(e):
     state = e.pattern_match.group(1) == "on"
     set_state("enabled", state)
 
-    try:
-        await e.delete()
-    except:
-        pass
-
+    await e.delete()
     msg = await bot.send_message(
         e.chat_id,
         f"🛡 Anti-PM {'ENABLED' if state else 'DISABLED'}"
@@ -124,23 +128,18 @@ async def toggle_antipm(e):
     await msg.delete()
 
 # =====================
-# SILENT MODE (NEW CMD)
+# SILENT MODE
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.antipms (on|off)$"))
-async def antipms_cmd(e):
+async def toggle_silent(e):
     if not is_owner(e):
         return
 
     silent = e.pattern_match.group(1) == "on"
-
     set_state("enabled", True)
     set_state("silent", silent)
 
-    try:
-        await e.delete()
-    except:
-        pass
-
+    await e.delete()
     msg = await bot.send_message(
         e.chat_id,
         f"🛡 Anti-PM ENABLED\n🔇 Silent mode {'ON' if silent else 'OFF'}"
@@ -159,11 +158,7 @@ async def antipm_status(e):
     s = get_state()
     total = col_users.count_documents({}) if col_users else 0
 
-    try:
-        await e.delete()
-    except:
-        pass
-
+    await e.delete()
     msg = await bot.send_message(
         e.chat_id,
         "🛡 **Anti-PM Status**\n\n"
@@ -190,11 +185,7 @@ async def approve_user(e):
         "last_warn_msg": None
     })
 
-    try:
-        await e.delete()
-    except:
-        pass
-
+    await e.delete()
     msg = await bot.send_message(e.chat_id, "✅ User approved")
     await asyncio.sleep(5)
     await msg.delete()
@@ -210,11 +201,7 @@ async def disapprove_user(e):
     r = await e.get_reply_message()
     reset_user(r.sender_id)
 
-    try:
-        await e.delete()
-    except:
-        pass
-
+    await e.delete()
     msg = await bot.send_message(e.chat_id, "❌ User disapproved")
     await asyncio.sleep(5)
     await msg.delete()
@@ -226,7 +213,6 @@ async def disapprove_user(e):
 async def antipm_handler(e):
     if not e.is_private or mongo is None:
         return
-
     if is_owner(e):
         return
 
@@ -244,11 +230,11 @@ async def antipm_handler(e):
         u = get_user(uid)
         now = time.time()
 
-        # APPROVED USER
+        # approved user
         if u and u.get("approved"):
             return
 
-        # FIRST MESSAGE
+        # first message
         if not u:
             save_user(uid, {
                 "approved": False,
@@ -256,7 +242,6 @@ async def antipm_handler(e):
                 "msgs": [now],
                 "last_warn_msg": None
             })
-
             if not s["silent"]:
                 await bot.send_message(
                     uid,
@@ -264,35 +249,25 @@ async def antipm_handler(e):
                 )
             return
 
-        # SPAM CHECK
+        # spam check
         msgs = [t for t in u.get("msgs", []) if now - t < SPAM_WINDOW]
         msgs.append(now)
 
         if len(msgs) >= SPAM_LIMIT:
-            old = u.get("last_warn_msg")
-            if old:
-                try:
-                    await bot.delete_messages(uid, old)
-                except:
-                    pass
-
+            if u.get("last_warn_msg"):
+                await bot.delete_messages(uid, u["last_warn_msg"])
             if not s["silent"]:
                 await bot.send_message(uid, "🚫 Spam detected. You are blocked.")
-
             await asyncio.sleep(1)
             await bot(BlockRequest(uid))
             reset_user(uid)
             return
 
-        # WARNINGS (REPLACE SYSTEM)
+        # warning replace system
         warnings = u.get("warnings", 0) + 1
 
-        old = u.get("last_warn_msg")
-        if old:
-            try:
-                await bot.delete_messages(uid, old)
-            except:
-                pass
+        if u.get("last_warn_msg"):
+            await bot.delete_messages(uid, u["last_warn_msg"])
 
         if warnings >= WARNING_LIMIT:
             if not s["silent"]:
