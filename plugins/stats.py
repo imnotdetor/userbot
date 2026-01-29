@@ -63,14 +63,20 @@ async def stats_handler(e):
         return
 
     try:
-        # delete command safely
         try:
             await e.delete()
         except:
             pass
 
-        # ✅ SEND LOADING MESSAGE FIRST (IMPORTANT FIX)
-        msg = await bot.send_message(e.chat_id, "📊 Collecting stats...")
+        # =====================
+        # LOADING MESSAGE
+        # =====================
+        msg = await bot.send_message(e.chat_id, "📊 Collecting stats")
+
+        # 🔄 SAFE ANIMATION (3 edits only)
+        for dots in [".", "..", "..."]:
+            await asyncio.sleep(0.8)
+            await msg.edit(f"📊 Collecting stats{dots}")
 
         me = await bot.get_me()
 
