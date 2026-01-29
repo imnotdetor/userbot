@@ -1,7 +1,10 @@
 import random
 import asyncio
 from telethon import events
-from telethon.tl.types import MessageEntityMention, MessageEntityTextMention
+from telethon.tl.types import (
+    MessageEntityMention,
+    MessageEntityMentionName
+)
 
 from userbot import bot
 from utils.owner import is_owner
@@ -123,9 +126,12 @@ async def fun_handler(e):
         # mention based
         elif e.message.entities:
             for ent in e.message.entities:
-                if isinstance(ent, MessageEntityTextMention):
+                # TEXT MENTION (new telethon)
+                if isinstance(ent, MessageEntityMentionName):
                     target = f"[User](tg://user?id={ent.user_id})"
                     break
+
+                # @username mention
                 if isinstance(ent, MessageEntityMention):
                     username = e.raw_text[ent.offset: ent.offset + ent.length]
                     try:
