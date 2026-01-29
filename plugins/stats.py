@@ -7,11 +7,18 @@ from userbot import bot
 from utils.owner import is_owner
 from utils.logger import log_error
 from utils.help_registry import register_help
+from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 
-print("✔ stats.py loaded")
+PLUGIN_NAME = "stats.py"
 
 # =====================
-# AUTO HELP REGISTER
+# PLUGIN LOAD
+# =====================
+print("✔ stats.py loaded")
+mark_plugin_loaded(PLUGIN_NAME)
+
+# =====================
+# HELP REGISTER
 # =====================
 register_help(
     "info",
@@ -38,7 +45,7 @@ def uptime():
 
 
 # =====================
-# MESSAGE COUNTER (SESSION)
+# MESSAGE COUNTER
 # =====================
 @bot.on(events.NewMessage(outgoing=True))
 async def count_my_messages(e):
@@ -56,11 +63,14 @@ async def stats_handler(e):
         return
 
     try:
-        # delete command
+        # delete command safely
         try:
             await e.delete()
-        except Exception:
+        except:
             pass
+
+        # ✅ SEND LOADING MESSAGE FIRST (IMPORTANT FIX)
+        msg = await bot.send_message(e.chat_id, "📊 Collecting stats...")
 
         me = await bot.get_me()
 
@@ -71,21 +81,9 @@ async def stats_handler(e):
         async for dialog in bot.iter_dialogs():
             entity = dialog.entity
 
-            # GROUPS
-            if isinstance(entity, Chat):
-                groups += 1
-                try:
-                    p = await bot.get_permissions(entity, me)
-                    if p.is_creator:
-                        g_owner += 1
-                    elif p.is_admin:
-                        g_admin += 1
-                except Exception:
-                    pass
-
-            # CHANNELS
-            elif isinstance(entity, Channel):
-                if entity.megagroup:
+            try:
+                # GROUPS
+                if isinstance(entity, Chat):
                     groups += 1
                     try:
                         p = await bot.get_permissions(entity, me)
@@ -93,21 +91,36 @@ async def stats_handler(e):
                             g_owner += 1
                         elif p.is_admin:
                             g_admin += 1
-                    except Exception:
-                        pass
-                else:
-                    channels += 1
-                    try:
-                        p = await bot.get_permissions(entity, me)
-                        if p.is_creator:
-                            c_owner += 1
-                        elif p.is_admin:
-                            c_admin += 1
-                    except Exception:
+                    except:
                         pass
 
+                # CHANNELS
+                elif isinstance(entity, Channel):
+                    if entity.megagroup:
+                        groups += 1
+                        try:
+                            p = await bot.get_permissions(entity, me)
+                            if p.is_creator:
+                                g_owner += 1
+                            elif p.is_admin:
+                                g_admin += 1
+                        except:
+                            pass
+                    else:
+                        channels += 1
+                        try:
+                            p = await bot.get_permissions(entity, me)
+                            if p.is_creator:
+                                c_owner += 1
+                            elif p.is_admin:
+                                c_admin += 1
+                        except:
+                            pass
+            except:
+                continue
+
         text = (
-            "📊 Telegram Profile Stats\n\n"
+            "📊 **Telegram Profile Stats**\n\n"
             f"👤 User: {me.first_name}\n"
             f"🆔 Your ID: `{me.id}`\n\n"
             f"👥 Groups: `{groups}`\n"
@@ -120,9 +133,10 @@ async def stats_handler(e):
             f"⏱ Uptime: `{uptime()}`"
         )
 
-        msg = await bot.send_message(e.chat_id, text)
+        await msg.edit(text)
         await asyncio.sleep(20)
         await msg.delete()
 
-    except Exception:
-        await log_error(bot, "stats.py")
+    except Exception as ex:
+        mark_plugin_error(PLUGIN_NAME, ex)
+        await log_error(bot, PLUGIN_NAME, ex)
