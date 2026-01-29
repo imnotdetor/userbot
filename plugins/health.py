@@ -1,9 +1,11 @@
+import asyncio
 from telethon import events
 
 from userbot import bot
 from utils.owner import is_owner
 from utils.plugin_status import get_broken_plugins, mark_plugin_loaded
 from utils.health import get_uptime, mongo_status
+from utils.auto_delete import auto_delete
 
 # =====================
 # PLUGIN LOAD
@@ -19,6 +21,11 @@ async def health_handler(e):
     if not is_owner(e):
         return
 
+    try:
+        await e.delete()
+    except:
+        pass
+
     broken = get_broken_plugins()
 
     if not broken:
@@ -28,8 +35,8 @@ async def health_handler(e):
             f"🗄 **MongoDB:** {mongo_status()}\n\n"
             "✅ **All plugins working fine**"
         )
-        await e.reply(text)
-        return
+        msg = await bot.send_message(e.chat_id, text)
+        return await auto_delete(msg, 8)
 
     text = (
         "🩺 **Userbot Health**\n\n"
@@ -41,4 +48,5 @@ async def health_handler(e):
     for name, info in broken.items():
         text += f"\n• **{name}**\n`{info['error'][:400]}`"
 
-    await e.reply(text)
+    msg = await bot.send_message(e.chat_id, text)
+    await auto_delete(msg, 15)
