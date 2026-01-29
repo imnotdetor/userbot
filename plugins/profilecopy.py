@@ -17,7 +17,6 @@ from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 from utils.mongo import mongo
 
 PLUGIN_NAME = "profilecopy.py"
-
 print(f"✔ {PLUGIN_NAME} loaded")
 mark_plugin_loaded(PLUGIN_NAME)
 
@@ -61,7 +60,7 @@ async def set_name(user):
 
 async def set_bio(user):
     full = await bot(GetFullUserRequest(user.id))
-    bio = full.about or ""
+    bio = full.full_user.about or ""
     await bot(functions.account.UpdateProfileRequest(about=bio))
 
 async def set_dp(user):
@@ -137,10 +136,7 @@ async def clone_cmd(e):
     CLONE_TASK = asyncio.create_task(clone_worker(user, seconds))
 
     if not SILENT_CLONE:
-        m = await bot.send_message(
-            e.chat_id,
-            f"🧬 Clone started for {seconds}s"
-        )
+        m = await bot.send_message(e.chat_id, f"🧬 Clone started for {seconds}s")
         await asyncio.sleep(4)
         await m.delete()
 
@@ -183,8 +179,8 @@ async def backup_profile_cmd(e):
         return
 
     me = await bot.get_me()
-full = await bot(GetFullUserRequest(me.id))
-bio = full.full_user.about or ""
+    full = await bot(GetFullUserRequest(me.id))
+    bio = full.full_user.about or ""
 
     dp_msg_id = None
     async for p in bot.iter_profile_photos(me.id, limit=1):
