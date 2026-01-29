@@ -2,18 +2,24 @@ import os
 import time
 import asyncio
 from datetime import datetime
+
 from telethon import events
+from telethon.tl import functions
 
 from userbot import bot
 from utils.owner import is_owner
 from utils.logger import log_error
 from utils.help_registry import register_help
-from utils.mongo import mongo, db
+from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
+from utils.mongo import mongo
+
 PLUGIN_NAME = "profilecopy.py"
+
 print(f"✔ {PLUGIN_NAME} loaded")
+mark_plugin_loaded(PLUGIN_NAME)
 
 # =====================
-# HELP REGISTER
+# HELP
 # =====================
 register_help(
     "profilecopy",
@@ -61,9 +67,9 @@ async def backup_profile(force=False):
     me = await bot.get_me()
     bio = (await bot.get_entity(me.id)).about or ""
 
-    dp_file = None
+    dp = None
     async for photo in bot.iter_profile_photos(me.id, limit=1):
-        dp_file = photo
+        dp = photo
         break
 
     profile_col.update_one(
@@ -72,7 +78,7 @@ async def backup_profile(force=False):
             "first_name": me.first_name,
             "last_name": me.last_name,
             "bio": bio,
-            "dp": dp_file.id if dp_file else None,
+            "dp": dp.id if dp else None,
             "time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         }},
         upsert=True
@@ -145,7 +151,7 @@ async def copy_cmd(e):
             ok = await copy_dp(user)
             msg = "✅ DP copied" if ok else "❌ No DP"
 
-        else:  # steal
+        else:
             await copy_name(user)
             await copy_bio(user)
             await copy_dp(user)
@@ -156,8 +162,9 @@ async def copy_cmd(e):
             await asyncio.sleep(4)
             await m.delete()
 
-    except Exception:
-        await log_error(bot, PLUGIN_NAME)
+    except Exception as ex:
+        mark_plugin_error(PLUGIN_NAME, ex)
+        await log_error(bot, PLUGIN_NAME, ex)
 
 # =====================
 # CLONE SYSTEM
