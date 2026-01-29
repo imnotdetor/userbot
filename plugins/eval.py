@@ -1,3 +1,5 @@
+# plugins/eval.py
+
 import traceback
 import asyncio
 import ast
@@ -6,7 +8,9 @@ from telethon import events
 from userbot import bot
 from utils.owner import is_owner
 from utils.help_registry import register_help
+from utils.explain_registry import register_explain
 from utils.logger import log_error
+from utils.auto_delete import auto_delete
 
 PLUGIN_NAME = "eval.py"
 print("✔ eval.py loaded")
@@ -17,27 +21,64 @@ print("✔ eval.py loaded")
 register_help(
     "dev",
     ".eval CODE\n\n"
-    "• Execute python code dynamically\n"
+    "Execute python code dynamically\n"
     "• Auto return last expression\n"
     "• Async + multiline supported\n"
     "• Owner only"
 )
 
-MAX_LEN = 3500  # telegram safe limit
+# =====================
+# EXPLANATION REGISTER
+# =====================
+register_explain(
+    "eval",
+    {
+        "title": "Eval – Live Python Executor",
+        "description": (
+            "Eval plugin live Python code execute karta hai.\n"
+            "Ye debugging, testing aur quick experiments ke liye use hota hai.\n\n"
+            "⚠️ Extremely powerful command – sirf OWNER ke liye."
+        ),
+        "commands": [
+            ".eval 1 + 1",
+            ".eval print('Hello')",
+            ".eval await bot.get_me()",
+            ".eval for i in range(3): print(i)"
+        ],
+        "use_cases": [
+            "Bot debugging",
+            "Live variable inspection",
+            "Quick math & logic test",
+            "Telegram API experiments"
+        ],
+        "notes": [
+            "Public groups me use mat karo",
+            "Infinite loop bot ko hang kar sakta hai",
+            "Sensitive data leak ho sakta hai"
+        ]
+    }
+)
+
+MAX_LEN = 3500  # Telegram safe limit
 
 # =====================
-# SAFE SEND
+# SAFE SEND (AUTO DELETE)
 # =====================
-async def send_long(chat_id, text):
+async def send_long(chat_id, text, delete_after=10):
+    msgs = []
     for i in range(0, len(text), MAX_LEN):
-        await bot.send_message(chat_id, text[i:i + MAX_LEN])
+        msg = await bot.send_message(chat_id, text[i:i + MAX_LEN])
+        msgs.append(msg)
+
+    for m in msgs:
+        await auto_delete(m, delete_after)
 
 # =====================
 # AUTO RETURN FIX
 # =====================
 def wrap_code(code: str) -> str:
     """
-    Automatically returns last expression if not explicit return
+    Automatically return last expression if no explicit return
     """
     tree = ast.parse(code)
 
@@ -62,13 +103,12 @@ async def eval_cmd(e):
 
         code = e.pattern_match.group(1)
         if not code:
-            await bot.send_message(
+            msg = await bot.send_message(
                 e.chat_id,
                 "Usage:\n.eval python_code"
             )
-            return
+            return await auto_delete(msg, 6)
 
-        # execution environment
         env = {
             "bot": bot,
             "event": e,
@@ -106,14 +146,16 @@ async def eval_cmd(e):
 
             await send_long(
                 e.chat_id,
-                f"✅ OUTPUT:\n{output}"
+                f"✅ OUTPUT:\n{output}",
+                delete_after=10
             )
 
         except Exception:
             err = traceback.format_exc()
             await send_long(
                 e.chat_id,
-                f"❌ ERROR:\n{err}"
+                f"❌ ERROR:\n{err}",
+                delete_after=15
             )
 
     except Exception as ex:
