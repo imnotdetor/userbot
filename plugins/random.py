@@ -3,13 +3,14 @@
 import random
 import asyncio
 from telethon import events
-from telethon.tl.types import MessageEntityMention, MessageEntityTextMention
+from telethon.tl.types import MessageEntityMention
 
 from userbot import bot
 from utils.owner import is_owner
 from utils.logger import log_error
 from utils.help_registry import register_help
 from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
+from utils.auto_delete import auto_delete
 
 PLUGIN_NAME = "random.py"
 
@@ -20,7 +21,7 @@ mark_plugin_loaded(PLUGIN_NAME)
 print("✔ random.py loaded")
 
 # =====================
-# AUTO HELP REGISTER
+# HELP REGISTER
 # =====================
 register_help(
     "random",
@@ -30,16 +31,16 @@ register_help(
     ".joke\n"
     ".truth\n"
     ".dare\n"
-    ".insult USER / TEXT (reply / mention)\n"
-    ".compliment USER / TEXT (reply / mention)\n\n"
+    ".insult USER / TEXT (reply / @mention)\n"
+    ".compliment USER / TEXT (reply / @mention)\n\n"
     "• Reply / mention / text based\n"
     "• Auto delete enabled\n"
     "• Owner only"
 )
 
-# ======================
-# RANDOM DATA
-# ======================
+# =====================
+# DATA
+# =====================
 DATA = {
     "predict": [
         "Yes 👍", "No ❌", "Maybe 🤔", "Definitely 🔥",
@@ -92,9 +93,9 @@ DATA = {
     ],
 }
 
-# ======================
+# =====================
 # HANDLER
-# ======================
+# =====================
 @bot.on(events.NewMessage(
     pattern=r"\.(predict|8ball|quote|joke|truth|dare|insult|compliment)(?:\s+(.*))?$"
 ))
@@ -106,8 +107,8 @@ async def random_handler(e):
         cmd = e.pattern_match.group(1)
         arg = e.pattern_match.group(2)
 
-        reply_to = None
         target = None
+        reply_to = None
 
         # delete command
         try:
@@ -125,14 +126,10 @@ async def random_handler(e):
                 target = f"[User](tg://user?id={r.sender_id})"
 
         # =====================
-        # MENTION BASED
+        # @MENTION BASED
         # =====================
         elif e.message.entities:
             for ent in e.message.entities:
-                if isinstance(ent, MessageEntityTextMention):
-                    target = f"[User](tg://user?id={ent.user_id})"
-                    break
-
                 if isinstance(ent, MessageEntityMention):
                     username = e.raw_text[ent.offset: ent.offset + ent.length]
                     try:
@@ -150,21 +147,16 @@ async def random_handler(e):
 
         choice = random.choice(DATA[cmd])
 
-        # format insult / compliment
         if "{target}" in choice:
             choice = choice.format(target=target or "You")
 
-        text = f"🎲 {choice}" if cmd in ["predict", "8ball", "quote", "joke", "truth", "dare"] \
-            else f"🎲 {choice}"
-
         msg = await bot.send_message(
             e.chat_id,
-            text,
+            f"🎲 {choice}",
             reply_to=reply_to
         )
 
-        await asyncio.sleep(10)
-        await msg.delete()
+        await auto_delete(msg, 6)
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
