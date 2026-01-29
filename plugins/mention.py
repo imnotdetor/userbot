@@ -1,124 +1,156 @@
 import asyncio
 import random
 from telethon import events
+from telethon.tl.functions.channels import GetParticipantRequest
+from telethon.tl.types import ChannelParticipantAdmin, ChannelParticipantCreator
 
 from userbot import bot
 from utils.owner import is_owner
 from utils.logger import log_error
+from utils.help_registry import register_help
+from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
+from utils.auto_delete import auto_delete
 
+PLUGIN_NAME = "mention.py"
 print("✔ mention.py loaded")
+mark_plugin_loaded(PLUGIN_NAME)
 
 # =====================
 # CONFIG
 # =====================
 BATCH_SIZE = 5
-MAX_MENTIONS = 50
-DELAY = 3  # seconds
+MAX_USERS = 50
+DELAY_BETWEEN_BATCH = 3
 
 RANDOM_TEXTS = [
     "Kaha ho sab log 🤨",
-    "Online aa jao bhai 😶",
-    "Sab gayab ho kya 👀",
-    "Attendance lagao 😏",
-    "Zinda ho sab? 😭",
-    "Hello hello 👋",
+    "Online bhi aa jao 👀",
+    "Sab gayab ho kya 😑",
+    "Attendance lagao jaldi 😤",
+    "Zinda ho ya nahi 😏"
 ]
 
 # =====================
-# GLOBAL STATE
+# STATE
 # =====================
 MENTION_RUNNING = False
 MENTIONED_USERS = set()
 
 # =====================
-# HELPERS
+# HELP REGISTER
 # =====================
-async def collect_users(chat_id):
-    users = []
+register_help(
+    "mention",
+    ".mention TEXT\n"
+    ".rdmention\n"
+    ".stopm\n\n"
+    "• Batch mention (5 users)\n"
+    "• Flood safe (max 50)\n"
+    "• Skips already mentioned users\n"
+    "• Owner only"
+)
+
+# =====================
+# HELPER: ADMIN CHECK
+# =====================
+async def is_admin(chat_id: int, user_id: int) -> bool:
+    try:
+        p = await bot(GetParticipantRequest(chat_id, user_id))
+        return isinstance(
+            p.participant,
+            (ChannelParticipantAdmin, ChannelParticipantCreator)
+        )
+    except Exception:
+        return False
+
+# =====================
+# CORE MENTION LOGIC
+# =====================
+async def run_mentions(chat_id: int, base_text: str):
+    global MENTION_RUNNING, MENTIONED_USERS
+
+    MENTION_RUNNING = True
+    count = 0
+    batch = []
+
     async for msg in bot.iter_messages(chat_id, limit=500):
-        if msg.sender_id and msg.sender_id not in MENTIONED_USERS:
-            users.append(msg.sender_id)
-        if len(users) >= MAX_MENTIONS:
-            break
-    return users
-
-async def run_mentions(chat_id, users, text):
-    global MENTION_RUNNING
-
-    for i in range(0, len(users), BATCH_SIZE):
         if not MENTION_RUNNING:
             break
 
-        batch = users[i:i + BATCH_SIZE]
-        mentions = " ".join(f"[User](tg://user?id={u})" for u in batch)
+        uid = msg.sender_id
+        if not uid or uid in MENTIONED_USERS:
+            continue
 
-        await bot.send_message(
-            chat_id,
-            f"{text}\n\n{mentions}",
-            link_preview=False
-        )
+        MENTIONED_USERS.add(uid)
+        count += 1
 
-        MENTIONED_USERS.update(batch)
-        await asyncio.sleep(DELAY)
+        try:
+            user = await bot.get_entity(uid)
+            name = user.first_name or "User"
+            batch.append(f"[{name}](tg://user?id={uid})")
+        except:
+            continue
+
+        if len(batch) == BATCH_SIZE:
+            text = f"{base_text}\n\n" + " ".join(batch)
+            await bot.send_message(chat_id, text, link_preview=False)
+            batch.clear()
+            await asyncio.sleep(DELAY_BETWEEN_BATCH)
+
+        if count >= MAX_USERS:
+            break
+
+    if batch and MENTION_RUNNING:
+        text = f"{base_text}\n\n" + " ".join(batch)
+        await bot.send_message(chat_id, text, link_preview=False)
 
     MENTION_RUNNING = False
+    await bot.send_message(chat_id, "✅ Mention completed")
 
 # =====================
-# .MENTION (TEXT BASED)
+# .mention COMMAND
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.mention (.+)$"))
+@bot.on(events.NewMessage(pattern=r"\.mention (.+)"))
 async def mention_cmd(e):
+    if not is_owner(e):
+        return
+
     global MENTION_RUNNING
 
-    if not is_owner(e) or MENTION_RUNNING:
-        return
+    if MENTION_RUNNING:
+        return await e.reply("⚠️ Mention already running")
 
     try:
         await e.delete()
-        MENTION_RUNNING = True
+    except:
+        pass
 
-        text = e.pattern_match.group(1)
-        users = await collect_users(e.chat_id)
-
-        if not users:
-            MENTION_RUNNING = False
-            return
-
-        await run_mentions(e.chat_id, users, text)
-
-    except Exception as ex:
-        MENTION_RUNNING = False
-        await log_error(bot, "mention.py", ex)
+    text = e.pattern_match.group(1)
+    asyncio.create_task(run_mentions(e.chat_id, text))
 
 # =====================
-# .RDMENTION (RANDOM TEXT)
+# .rdmention COMMAND
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.rdmention$"))
 async def rdmention_cmd(e):
+    if not is_owner(e):
+        return
+
     global MENTION_RUNNING
 
-    if not is_owner(e) or MENTION_RUNNING:
-        return
+    if MENTION_RUNNING:
+        return await e.reply("⚠️ Mention already running")
 
     try:
         await e.delete()
-        MENTION_RUNNING = True
+    except:
+        pass
 
-        text = random.choice(RANDOM_TEXTS)
-        users = await collect_users(e.chat_id)
-
-        if not users:
-            MENTION_RUNNING = False
-            return
-
-        await run_mentions(e.chat_id, users, text)
-
-    except Exception as ex:
-        MENTION_RUNNING = False
-        await log_error(bot, "mention.py", ex)
+    text = random.choice(RANDOM_TEXTS)
+    asyncio.create_task(run_mentions(e.chat_id, text))
 
 # =====================
-# STOP MENTION
+# .stopm COMMAND
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.stopm$"))
 async def stop_mention(e):
@@ -127,6 +159,17 @@ async def stop_mention(e):
     if not is_owner(e):
         return
 
-    await e.delete()
     MENTION_RUNNING = False
-    await bot.send_message(e.chat_id, "🛑 Mention stopped")
+
+    try:
+        await e.delete()
+    except:
+        pass
+
+    msg = await bot.send_message(
+        e.chat_id,
+        "🛑 Mention stopped"
+    )
+
+    # ✅ auto delete after 6 seconds
+    await auto_delete(msg, 6)
