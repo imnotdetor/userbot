@@ -2,7 +2,7 @@
 
 import random
 from telethon import events
-from telethon.tl.types import MessageEntityMention, MessageEntityMentionName
+from telethon.tl.types import MessageEntityMention, MessageEntityTextMention
 
 from userbot import bot
 from utils.owner import is_owner
@@ -85,7 +85,7 @@ async def get_target(e):
     # mention based
     if e.message.entities:
         for ent in e.message.entities:
-            if isinstance(ent, MessageEntityMentionName):
+            if isinstance(ent, MessageEntityTextMention):
                 user = await bot.get_entity(ent.user_id)
                 return f"[{user.first_name}](tg://user?id={user.id})", None
 
@@ -116,32 +116,38 @@ async def savage_handler(e):
         mood = e.pattern_match.group(2)
 
         target, reply_to = await get_target(e)
+        you = f"[You](tg://user?id={e.sender_id})"
 
-        if cmd not in ("chaos", "cold") and not target:
-            return
-
+        # ========= LOGIC =========
         if cmd == "roast":
+            if not target: return
             text = random.choice(ROASTS).format(t=target)
 
         elif cmd == "iq":
+            if not target: return
             text = f"🧠 {target} ka IQ hai **{random.randint(40,180)}**"
 
         elif cmd == "ship":
-            text = f"💞 {target} + You = **{random.randint(1,100)}%** match"
+            pair = target if target else you
+            text = f"💞 {pair} + {you} = **{random.randint(1,100)}%** match"
 
         elif cmd == "future":
+            if not target: return
             text = random.choice(FUTURES).format(t=target)
 
         elif cmd == "gayrate":
             text = f"🏳️‍🌈 Gay meter: **{random.randint(1,100)}%**"
 
         elif cmd == "simp":
+            if not target: return
             text = f"💘 {target} certified SIMP hai 😂"
 
         elif cmd == "kill":
+            if not target: return
             text = f"🔪 {target} ko imaginary slap mila 😈"
 
         elif cmd == "punch":
+            if not target: return
             text = f"👊 {target} got punched (virtually 😌)"
 
         elif cmd == "chaos":
@@ -151,6 +157,7 @@ async def savage_handler(e):
             text = "🧊 Cold reply detected"
 
         elif cmd == "hug":
+            if not target: return
             if mood == "sad":
                 text = random.choice(HUG_SAD).format(t=target)
             elif mood == "angry":
@@ -160,12 +167,7 @@ async def savage_handler(e):
         else:
             return
 
-        msg = await bot.send_message(
-            e.chat_id,
-            text,
-            reply_to=reply_to
-        )
-
+        msg = await bot.send_message(e.chat_id, text, reply_to=reply_to)
         await auto_delete(msg, 6)
 
     except Exception as ex:
