@@ -1,31 +1,35 @@
-import time
-from utils.mongo import check_mongo_health
+# database/notes.py
 
-START_TIME = time.time()
+from utils.mongo import db
 
-# =====================
-# UPTIME
-# =====================
-def get_uptime():
-    seconds = int(time.time() - START_TIME)
-
-    mins, sec = divmod(seconds, 60)
-    hrs, mins = divmod(mins, 60)
-    days, hrs = divmod(hrs, 24)
-
-    if days:
-        return f"{days}d {hrs}h {mins}m"
-    if hrs:
-        return f"{hrs}h {mins}m"
-    if mins:
-        return f"{mins}m {sec}s"
-    return f"{sec}s"
+# collection
+_notes = db["notes"]
 
 # =====================
-# MONGO STATUS
+# SET NOTE
 # =====================
-def mongo_status():
-    status = check_mongo_health()
-    if status["ok"]:
-        return f"✅ Connected ({status['time']})"
-    return f"❌ Error: {status['error']}"
+def set_note(name: str, text: str):
+    _notes.update_one(
+        {"_id": name},
+        {"$set": {"text": text}},
+        upsert=True
+    )
+
+# =====================
+# GET NOTE
+# =====================
+def get_note(name: str):
+    data = _notes.find_one({"_id": name})
+    return data["text"] if data else None
+
+# =====================
+# DELETE NOTE
+# =====================
+def del_note(name: str):
+    _notes.delete_one({"_id": name})
+
+# =====================
+# LIST NOTES
+# =====================
+def all_notes():
+    return {x["_id"]: x.get("text") for x in _notes.find()}
