@@ -25,7 +25,8 @@ register_help(
     "ship",
     ".ships\n\n"
     "• Randomly makes a couple\n"
-    "• Picks 2 random users from chat\n"
+    "• Picks users from recent chat history\n"
+    "• Works in private / restricted groups\n"
     "• Owner only\n"
     "• Auto delete enabled"
 )
@@ -39,22 +40,44 @@ async def ship_cmd(e):
         return
 
     try:
+        # delete command message
         try:
             await e.delete()
         except:
             pass
 
         users = []
+        seen = set()
 
-        # collect users safely
-        async for user in bot.iter_participants(e.chat_id, limit=200):
-            if user.bot or user.deleted:
+        # =====================
+        # COLLECT USERS FROM RECENT CHAT
+        # =====================
+        async for msg in bot.iter_messages(e.chat_id, limit=300):
+            uid = msg.sender_id
+            if not uid or uid in seen:
                 continue
-            users.append(user)
+
+            try:
+                user = await bot.get_entity(uid)
+                if user.bot or user.deleted:
+                    continue
+
+                users.append(user)
+                seen.add(uid)
+
+            except:
+                continue
 
         if len(users) < 2:
-            return
+            msg = await bot.send_message(
+                e.chat_id,
+                "❌ Not enough active users to ship"
+            )
+            return await auto_delete(msg, 6)
 
+        # =====================
+        # PICK RANDOM COUPLE
+        # =====================
         u1, u2 = random.sample(users, 2)
 
         name1 = u1.first_name or "User"
