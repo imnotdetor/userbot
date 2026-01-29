@@ -28,10 +28,9 @@ SPAM_LIMIT = 5
 SPAM_WINDOW = 10  # seconds
 
 # =====================
-# MONGO INIT (SAFE)
+# MONGO INIT
 # =====================
 if mongo is None:
-    print("⚠️ MongoDB not connected — antipm disabled")
     col_users = None
     col_state = None
 else:
@@ -40,57 +39,67 @@ else:
     col_state = db["antipm_state"]
 
 # =====================
-# STATE HELPERS (SAFE)
+# STATE HELPERS
 # =====================
 def get_state():
     base = {"enabled": True, "silent": False}
-
     if col_state is None:
         return base
 
     d = col_state.find_one({"_id": "state"}) or {}
     base.update(d)
 
-    # 🔧 auto-fix missing keys
     col_state.update_one(
         {"_id": "state"},
         {"$set": base},
         upsert=True
     )
-
     return base
 
 
 def set_state(key, value):
-    if col_state is None:
-        return
-    col_state.update_one(
-        {"_id": "state"},
-        {"$set": {key: value}},
-        upsert=True
-    )
+    if col_state:
+        col_state.update_one(
+            {"_id": "state"},
+            {"$set": {key: value}},
+            upsert=True
+        )
 
 
 def get_user(uid):
-    if col_users is None:
-        return None
-    return col_users.find_one({"_id": uid})
+    return col_users.find_one({"_id": uid}) if col_users else None
 
 
 def save_user(uid, data):
-    if col_users is None:
-        return
-    col_users.update_one(
-        {"_id": uid},
-        {"$set": data},
-        upsert=True
-    )
+    if col_users:
+        col_users.update_one(
+            {"_id": uid},
+            {"$set": data},
+            upsert=True
+        )
 
 
 def reset_user(uid):
-    if col_users is None:
-        return
-    col_users.delete_one({"_id": uid})
+    if col_users:
+        col_users.delete_one({"_id": uid})
+
+
+async def resolve_user(e):
+    if e.is_reply:
+        r = await e.get_reply_message()
+        return r.sender_id
+
+    arg = e.pattern_match.group(1)
+    if not arg:
+        return None
+
+    try:
+        if arg.isdigit():
+            return int(arg)
+        user = await bot.get_entity(arg)
+        return user.id
+    except:
+        return None
 
 # =====================
 # HELP
@@ -100,8 +109,9 @@ register_help(
     ".antipm on | off\n"
     ".antipms on | off\n"
     ".antipmstatus\n"
-    ".approve (reply)\n"
-    ".disapprove (reply)\n\n"
+    ".approve (reply / user / id)\n"
+    ".disapprove (reply / user / id)\n"
+    ".resetwarn (reply / user / id)\n\n"
     "• MongoDB based Anti-PM\n"
     "• Warning replace system\n"
     "• Spam detection\n"
@@ -109,7 +119,7 @@ register_help(
 )
 
 # =====================
-# MASTER ON / OFF
+# TOGGLE ANTIPM
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.antipm (on|off)$"))
 async def toggle_antipm(e):
@@ -172,13 +182,16 @@ async def antipm_status(e):
 # =====================
 # APPROVE
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.approve$"))
+@bot.on(events.NewMessage(pattern=r"\.approve(?:\s+(.+))?$"))
 async def approve_user(e):
-    if not is_owner(e) or not e.is_reply:
+    if not is_owner(e):
         return
 
-    r = await e.get_reply_message()
-    save_user(r.sender_id, {
+    uid = await resolve_user(e)
+    if not uid:
+        return
+
+    save_user(uid, {
         "approved": True,
         "warnings": 0,
         "msgs": [],
@@ -193,16 +206,43 @@ async def approve_user(e):
 # =====================
 # DISAPPROVE
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.disapprove$"))
+@bot.on(events.NewMessage(pattern=r"\.disapprove(?:\s+(.+))?$"))
 async def disapprove_user(e):
-    if not is_owner(e) or not e.is_reply:
+    if not is_owner(e):
         return
 
-    r = await e.get_reply_message()
-    reset_user(r.sender_id)
+    uid = await resolve_user(e)
+    if not uid:
+        return
+
+    reset_user(uid)
 
     await e.delete()
     msg = await bot.send_message(e.chat_id, "❌ User disapproved")
+    await asyncio.sleep(5)
+    await msg.delete()
+
+# =====================
+# RESET WARNINGS
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.resetwarn(?:\s+(.+))?$"))
+async def reset_warning(e):
+    if not is_owner(e):
+        return
+
+    uid = await resolve_user(e)
+    if not uid:
+        return
+
+    save_user(uid, {
+        "approved": False,
+        "warnings": 0,
+        "msgs": [],
+        "last_warn_msg": None
+    })
+
+    await e.delete()
+    msg = await bot.send_message(e.chat_id, "🔄 Warnings reset")
     await asyncio.sleep(5)
     await msg.delete()
 
@@ -230,11 +270,9 @@ async def antipm_handler(e):
         u = get_user(uid)
         now = time.time()
 
-        # approved user
         if u and u.get("approved"):
             return
 
-        # first message
         if not u:
             save_user(uid, {
                 "approved": False,
@@ -245,11 +283,10 @@ async def antipm_handler(e):
             if not s["silent"]:
                 await bot.send_message(
                     uid,
-                    "👋 Hi!\nThis account doesn’t accept DMs.\nPlease wait or get approved."
+                    "👋 Hi!\nDMs are restricted.\nPlease wait or get approved."
                 )
             return
 
-        # spam check
         msgs = [t for t in u.get("msgs", []) if now - t < SPAM_WINDOW]
         msgs.append(now)
 
@@ -263,7 +300,6 @@ async def antipm_handler(e):
             reset_user(uid)
             return
 
-        # warning replace system
         warnings = u.get("warnings", 0) + 1
 
         if u.get("last_warn_msg"):
