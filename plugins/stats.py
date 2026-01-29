@@ -16,6 +16,9 @@ PLUGIN_NAME = "stats.py"
 print("✔ stats.py loaded")
 mark_plugin_loaded(PLUGIN_NAME)
 
+# =====================
+# HELP
+# =====================
 register_help(
     "info",
     ".stats\n\n"
@@ -26,6 +29,9 @@ register_help(
     "• Bot uptime"
 )
 
+# =====================
+# GLOBAL STATS
+# =====================
 START_TIME = time.time()
 MSG_COUNT = 0
 
@@ -37,6 +43,9 @@ def uptime():
     return f"{h}h {m}m {s}s"
 
 
+# =====================
+# MESSAGE COUNTER
+# =====================
 @bot.on(events.NewMessage(outgoing=True))
 async def count_my_messages(e):
     global MSG_COUNT
@@ -44,15 +53,9 @@ async def count_my_messages(e):
         MSG_COUNT += 1
 
 
-async def animate(msg, stop_event):
-    dots = ["", ".", "..", "..."]
-    i = 0
-    while not stop_event.is_set():
-        await msg.edit(f"📊 Collecting stats{dots[i % 4]}")
-        i += 1
-        await asyncio.sleep(0.9)
-
-
+# =====================
+# STATS COMMAND
+# =====================
 @bot.on(events.NewMessage(pattern=r"\.stats$"))
 async def stats_handler(e):
     if not is_owner(e):
@@ -64,10 +67,13 @@ async def stats_handler(e):
         except:
             pass
 
+        # 🔹 Step-1: Initial message
         msg = await bot.send_message(e.chat_id, "📊 Collecting stats")
 
-        stop_event = asyncio.Event()
-        anim_task = asyncio.create_task(animate(msg, stop_event))
+        # 🔹 Step-2: Small SAFE animation (not infinite)
+        for dots in [".", "..", "..."]:
+            await asyncio.sleep(0.7)
+            await msg.edit(f"📊 Collecting stats{dots}")
 
         me = await bot.get_me()
 
@@ -75,6 +81,7 @@ async def stats_handler(e):
         g_admin = g_owner = 0
         c_admin = c_owner = 0
 
+        # 🔹 Step-3: Heavy work
         async for dialog in bot.iter_dialogs(limit=1500):
             entity = dialog.entity
 
@@ -105,9 +112,7 @@ async def stats_handler(e):
             except:
                 continue
 
-        stop_event.set()
-        await anim_task
-
+        # 🔹 Step-4: Final result
         text = (
             "📊 **Telegram Profile Stats**\n\n"
             f"👤 User: {me.first_name}\n"
