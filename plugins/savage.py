@@ -28,7 +28,7 @@ register_help(
     ".iq (reply / @mention)\n"
     ".future (reply / @mention)\n"
     ".gayrate\n"
-    ".simp (reply / @mention)\n"
+    ".ssimp (reply / @mention)\n"
     ".kill (reply / @mention)\n"
     ".punch (reply / @mention)\n"
     ".chaos\n"
@@ -130,7 +130,7 @@ async def savage_handler(e):
         elif cmd == "gayrate":
             text = f"🏳️‍🌈 Gay meter: **{random.randint(1,100)}%**"
 
-        elif cmd == "simp":
+        elif cmd == "ssimp":
             text = f"💘 {target} certified SIMP hai 😂"
 
         elif cmd == "kill":
