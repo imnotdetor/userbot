@@ -4,6 +4,7 @@ import time
 import json
 import os
 import asyncio
+from datetime import datetime
 
 from telethon import events
 from telethon.tl.functions.channels import EditBannedRequest
@@ -22,7 +23,7 @@ DATA_FILE = "utils/moderation_data.json"
 # PLUGIN LOAD
 # =====================
 mark_plugin_loaded(PLUGIN_NAME)
-print("✔ moderation.py loaded (FINAL)")
+print("✔ moderation.py loaded (FINAL FIXED)")
 
 # =====================
 # STORAGE
@@ -51,11 +52,7 @@ def parse_time(t):
     try:
         n = int(t[:-1])
         u = t[-1]
-        return (
-            n * 60 if u == "m" else
-            n * 3600 if u == "h" else
-            n * 86400 if u == "d" else None
-        )
+        return n * 60 if u == "m" else n * 3600 if u == "h" else n * 86400 if u == "d" else None
     except:
         return None
 
@@ -66,14 +63,11 @@ async def resolve_user(e):
     if e.is_reply:
         r = await e.get_reply_message()
         return r.sender_id
-
     arg = (e.pattern_match.group(1) or "").strip()
     if not arg:
         return None
-
     if arg.isdigit():
         return int(arg)
-
     try:
         u = await bot.get_entity(arg)
         return u.id
@@ -97,11 +91,12 @@ register_help(
     ".ungmute\n"
     ".gban [reason]\n"
     ".ungban\n"
+    ".gbaninfo <user>\n"
     ".gmutelist\n"
     ".gbanlist\n\n"
     "• REAL global moderation\n"
     "• Auto-unmute (gmute only)\n"
-    "• Works in all groups where you are admin\n"
+    "• Works in all admin groups\n"
     "• Reason supported"
 )
 
@@ -127,17 +122,13 @@ async def gmute(e):
     }
     save()
 
+    await e.delete()
     msg = await bot.send_message(
         e.chat_id,
-        f"🔕 **GLOBAL MUTE**\n"
-        f"User: `{uid}`\n"
-        f"Duration: `{e.pattern_match.group(1) or 'Permanent'}`\n"
-        f"Reason: `{reason}`"
+        f"🔕 **GLOBAL MUTE**\nUser: `{uid}`\nDuration: `{e.pattern_match.group(1) or 'Permanent'}`\nReason: `{reason}`"
     )
-
     await asyncio.sleep(6)
     await msg.delete()
-    await e.delete()
 
 # =====================
 # UNGMUTE
@@ -151,17 +142,13 @@ async def ungmute(e):
     DATA["gmutes"].pop(str(uid), None)
     save()
 
-    msg = await bot.send_message(
-        e.chat_id,
-        f"🔔 **GLOBAL MUTE REMOVED**\nUser: `{uid}`"
-    )
-
+    await e.delete()
+    msg = await bot.send_message(e.chat_id, f"🔔 **GLOBAL MUTE REMOVED**\nUser: `{uid}`")
     await asyncio.sleep(6)
     await msg.delete()
-    await e.delete()
 
 # =====================
-# GBAN (REAL GLOBAL)
+# GBAN
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.gban(?: (.*))?$"))
 async def gban(e):
@@ -173,11 +160,7 @@ async def gban(e):
         return
 
     reason = e.pattern_match.group(1) or "No reason"
-
-    DATA["gbans"][str(uid)] = {
-        "time": now(),
-        "reason": reason
-    }
+    DATA["gbans"][str(uid)] = {"time": now(), "reason": reason}
     save()
 
     async for d in bot.iter_dialogs():
@@ -187,17 +170,13 @@ async def gban(e):
             except:
                 pass
 
-    msg = await bot.send_message(
-        e.chat_id,
-        f"🚫 **GLOBAL BAN**\nUser: `{uid}`\nReason: `{reason}`"
-    )
-
+    await e.delete()
+    msg = await bot.send_message(e.chat_id, f"🚫 **GLOBAL BAN**\nUser: `{uid}`\nReason: `{reason}`")
     await asyncio.sleep(6)
     await msg.delete()
-    await e.delete()
 
 # =====================
-# UNGBAN (FIXED)
+# UNGBAN
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.ungban(?: (.*))?$"))
 async def ungban(e):
@@ -215,14 +194,11 @@ async def ungban(e):
             except:
                 pass
 
-    msg = await bot.send_message(
-        e.chat_id,
-        f"✅ **GLOBAL BAN REMOVED**\nUser: `{uid}`"
-    )
-
+    await e.delete()
+    msg = await bot.send_message(e.chat_id, f"✅ **GLOBAL BAN REMOVED**\nUser: `{uid}`")
     await asyncio.sleep(6)
     await msg.delete()
-    await e.delete()
+
 # =====================
 # GBAN INFO
 # =====================
@@ -232,32 +208,22 @@ async def gbaninfo(e):
         return
 
     uid = await resolve_user(e)
-    if not uid:
-        return
-
     data = DATA["gbans"].get(str(uid))
 
+    await e.delete()
+
     if not data:
-        msg = await bot.send_message(
-            e.chat_id,
-            f"ℹ️ **GBAN INFO**\n\nUser: `{uid}`\nStatus: ❌ Not globally banned"
-        )
+        msg = await bot.send_message(e.chat_id, f"ℹ️ User `{uid}` is **not globally banned**")
         await asyncio.sleep(6)
         await msg.delete()
-        await e.delete()
         return
 
-    text = (
-        "🚫 **GBAN INFO**\n\n"
-        f"• User: `{uid}`\n"
-        f"• Banned at: `{datetime.fromtimestamp(data['time']).strftime('%d %b %Y %I:%M %p')}`\n"
-        f"• Reason: `{data.get('reason', 'No reason')}`"
+    msg = await bot.send_message(
+        e.chat_id,
+        f"🚫 **GBAN INFO**\nUser: `{uid}`\nBanned at: `{datetime.fromtimestamp(data['time'])}`\nReason: `{data.get('reason')}`"
     )
-
-    msg = await bot.send_message(e.chat_id, text)
     await asyncio.sleep(10)
     await msg.delete()
-    await e.delete()
 
 # =====================
 # LISTS
@@ -266,42 +232,36 @@ async def gbaninfo(e):
 async def gmutelist(e):
     if not is_owner(e):
         return
-
-    text = "🔕 **GLOBAL MUTES**\n\n"
-    for uid, d in DATA["gmutes"].items():
-        text += f"• `{uid}` → {d.get('reason')}\n"
-
-    await e.reply(text or "No global mutes")
+    txt = "🔕 **GLOBAL MUTES**\n\n"
+    for u, d in DATA["gmutes"].items():
+        txt += f"• `{u}` → {d.get('reason')}\n"
+    await e.reply(txt or "Empty")
 
 @bot.on(events.NewMessage(pattern=r"\.gbanlist$"))
 async def gbanlist(e):
     if not is_owner(e):
         return
-
-    text = "🚫 **GLOBAL BANS**\n\n"
-    for uid, d in DATA["gbans"].items():
-        text += f"• `{uid}` → {d.get('reason')}\n"
-
-    await e.reply(text or "No global bans")
+    txt = "🚫 **GLOBAL BANS**\n\n"
+    for u, d in DATA["gbans"].items():
+        txt += f"• `{u}` → {d.get('reason')}\n"
+    await e.reply(txt or "Empty")
 
 # =====================
-# WATCHER (AUTO)
+# WATCHER
 # =====================
 @bot.on(events.NewMessage(incoming=True))
 async def moderation_watcher(e):
     try:
         uid = str(e.sender_id)
 
-        # GBAN
         if uid in DATA["gbans"]:
             await e.delete()
             return
 
-        # GMUTE
         gm = DATA["gmutes"].get(uid)
         if gm:
             if gm["until"] and now() > gm["until"]:
-                DATA["gmutes"].pop(uid, None)
+                DATA["gmutes"].pop(uid)
                 save()
             else:
                 await e.delete()
