@@ -15,6 +15,9 @@ from utils.local_store import load_json, save_json
 
 PLUGIN_NAME = "antipm.py"
 
+# =====================
+# PLUGIN LOAD + HEALTH
+# =====================
 mark_plugin_loaded(PLUGIN_NAME)
 print("✔ antipm.py loaded (local storage mode)")
 
@@ -43,17 +46,14 @@ def save_state():
 def save_users():
     save_json(USERS_FILE, USERS)
 
-def get_user(uid):
-    return USERS.get(str(uid))
-
-def reset_user(uid):
-    USERS.pop(str(uid), None)
-    save_users()
-
 def ts(t):
     if not t:
         return "N/A"
     return datetime.fromtimestamp(t).strftime("%Y-%m-%d %H:%M:%S")
+
+def reset_user(uid):
+    USERS.pop(str(uid), None)
+    save_users()
 
 async def resolve_user(e):
     if e.is_reply:
@@ -91,7 +91,7 @@ register_help(
 )
 
 # =====================
-# TOGGLE
+# TOGGLES
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.antipm (on|off)$"))
 async def toggle_antipm(e):
@@ -135,17 +135,17 @@ async def antipm_status(e):
         return
 
     await e.delete()
-    msg = await bot.send_message(
+    m = await bot.send_message(
         e.chat_id,
         "🛡 **Anti-PM Status**\n\n"
         f"• Enabled: `{STATE['enabled']}`\n"
         f"• Silent: `{STATE['silent']}`\n"
         f"• Tracked users: `{len(USERS)}`\n"
-        f"• Last blocked user: `{STATE['last_blocked_user'] or 'N/A'}`\n"
+        f"• Last blocked: `{STATE['last_blocked_user'] or 'N/A'}`\n"
         f"• Last warning: `{ts(STATE['last_warning_time'])}`"
     )
     await asyncio.sleep(10)
-    await msg.delete()
+    await m.delete()
 
 # =====================
 # LIST USERS
@@ -230,7 +230,6 @@ async def resetwarn(e):
         "last_warning_time": None
     }
     save_users()
-
     await e.delete()
 
 # =====================
@@ -277,6 +276,13 @@ async def antipm_handler(e):
             reset_user(uid)
             return
 
+        # delete previous warning
+        if u.get("last_warn_msg"):
+            try:
+                await bot.delete_messages(uid, u["last_warn_msg"])
+            except:
+                pass
+
         warnings = u["warnings"] + 1
         STATE["last_warning_time"] = now
         save_state()
@@ -288,15 +294,17 @@ async def antipm_handler(e):
             reset_user(uid)
             return
 
+        warn_msg = None
         if not STATE["silent"]:
-            warn = await bot.send_message(uid, f"⚠️ Warning {warnings}/{WARNING_LIMIT}")
-            u["last_warn_msg"] = warn.id
+            warn_msg = await bot.send_message(
+                uid, f"⚠️ Warning {warnings}/{WARNING_LIMIT}"
+            )
 
         USERS[str(uid)] = {
             "approved": False,
             "warnings": warnings,
             "msgs": msgs,
-            "last_warn_msg": u.get("last_warn_msg"),
+            "last_warn_msg": warn_msg.id if warn_msg else None,
             "last_warning_time": now
         }
         save_users()
