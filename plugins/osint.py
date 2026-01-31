@@ -11,7 +11,6 @@ from telethon.tl.functions.users import GetFullUserRequest
 from telethon.tl.functions.photos import GetUserPhotosRequest
 
 from userbot import bot
-from utils.owner import is_owner
 from utils.help_registry import register_help
 from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 from utils.logger import log_error
@@ -38,23 +37,22 @@ DATA = load()
 # PLUGIN LOAD
 # =====================
 mark_plugin_loaded(PLUGIN_NAME)
-print("✔ osint.py loaded (STABLE OSINT MODE)")
+print("✔ osint.py loaded (FIXED)")
 
 # =====================
 # HELP
 # =====================
 register_help(
     "osint",
-    ".userinfo / .userinfo osint\n"
-    ".numberinfo\n"
-    ".userphotos\n"
-    ".trackuser\n"
-    ".untrackuser\n"
+    ".userinfo (reply / user / id)\n"
+    ".numberinfo (reply)\n"
+    ".userphotos (reply)\n"
+    ".trackuser (reply)\n"
+    ".untrackuser (reply)\n"
     ".tracklist\n\n"
     "• Telegram OSINT (ToS-safe)\n"
-    "• Risk scoring\n"
-    "• History tracking\n"
-    "• No privacy bypass"
+    "• No privacy bypass\n"
+    "• Stable & health-safe"
 )
 
 # =====================
@@ -78,69 +76,56 @@ async def resolve_user(e):
     except:
         return None
 
-
-def approx_account_age(uid: int):
-    # heuristic only (NOT exact)
+def approx_account_age(uid):
     try:
         year = 2013 + int(math.log10(uid))
         return f"~{year}"
     except:
         return "Unknown"
 
-
-def risk_score(user, full):
+def risk_score(user, bio):
     score = 0
-
-    if not user.username:
-        score += 15
-    if not user.photo:
-        score += 20
-    if not full.about:
-        score += 10
-    if user.bot:
-        score += 40
-    if user.scam:
-        score += 50
-    if user.fake:
-        score += 30
-    if user.verified:
-        score -= 10
-    if user.premium:
-        score -= 5
-
+    if not user.username: score += 15
+    if not user.photo: score += 20
+    if not bio: score += 10
+    if user.bot: score += 40
+    if user.scam: score += 50
+    if user.fake: score += 30
+    if user.verified: score -= 10
+    if user.premium: score -= 5
     return max(0, min(score, 100))
 
-
 # =====================
-# USERINFO
+# USERINFO (FIXED)
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.userinfo(?: (osint))?$"))
+@bot.on(events.NewMessage(pattern=r"\.userinfo(?:\s+(.+))?$"))
 async def userinfo(e):
     try:
         uid = await resolve_user(e)
         if not uid:
-            return
+            return await e.reply("❌ Reply to a user or give username / id")
 
         user = await bot.get_entity(uid)
         full = await bot(GetFullUserRequest(uid))
 
-        risk = risk_score(user, full)
+        bio = full.full_user.about or "N/A"
+        risk = risk_score(user, bio)
 
         text = (
             "🧠 **USER OSINT REPORT**\n\n"
             f"• ID: `{user.id}`\n"
             f"• Name: `{(user.first_name or '')} {(user.last_name or '')}`\n"
-            f"• Username: `@{user.username}`\n"
-            f"• Bio: `{full.about or 'N/A'}`\n"
+            f"• Username: `@{user.username or 'N/A'}`\n"
+            f"• Bio: `{bio}`\n"
             f"• Phone: `{user.phone or 'Hidden'}`\n"
             f"• Premium: `{bool(user.premium)}`\n"
             f"• Verified: `{bool(user.verified)}`\n"
             f"• Bot: `{bool(user.bot)}`\n"
-            f"• Scam flag: `{bool(user.scam)}`\n"
-            f"• Fake flag: `{bool(user.fake)}`\n"
+            f"• Scam: `{bool(user.scam)}`\n"
+            f"• Fake: `{bool(user.fake)}`\n"
             f"• Approx Account Age: `{approx_account_age(user.id)}`\n\n"
             f"⚠️ **RISK SCORE:** `{risk}%`\n"
-            f"STATUS: `{'HIGH RISK' if risk >= 60 else 'LOW / NORMAL'}`"
+            f"STATUS: `{'HIGH RISK' if risk >= 60 else 'NORMAL'}`"
         )
 
         await e.reply(text)
@@ -148,7 +133,6 @@ async def userinfo(e):
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
         await log_error(bot, PLUGIN_NAME, ex)
-
 
 # =====================
 # NUMBER INFO
@@ -160,19 +144,16 @@ async def numberinfo(e):
         user = await bot.get_entity(uid)
 
         if not user.phone:
-            return await e.reply("❌ Phone number hidden by privacy settings")
+            return await e.reply("❌ Phone number hidden")
 
         await e.reply(
-            "📞 **NUMBER INFO (OSINT)**\n\n"
+            f"📞 **NUMBER INFO**\n\n"
             f"• Number: `+{user.phone}`\n"
-            f"• Country: `Approx by prefix`\n"
-            f"• Visibility: `Public to you`\n"
+            f"• Visibility: `Public to you`"
         )
-
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
         await log_error(bot, PLUGIN_NAME, ex)
-
 
 # =====================
 # USER PHOTOS
@@ -182,46 +163,7 @@ async def userphotos(e):
     try:
         uid = await resolve_user(e)
         photos = await bot(GetUserPhotosRequest(uid, 0, 0, 20))
-        await e.reply(f"📸 Profile photos found: `{len(photos.photos)}`")
+        await e.reply(f"📸 Profile photos: `{len(photos.photos)}`")
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
         await log_error(bot, PLUGIN_NAME, ex)
-
-
-# =====================
-# TRACK USER
-# =====================
-@bot.on(events.NewMessage(pattern=r"\.trackuser$"))
-async def track_user(e):
-    uid = await resolve_user(e)
-    user = await bot.get_entity(uid)
-
-    DATA["track"][str(uid)] = {
-        "username": user.username,
-        "name": f"{user.first_name or ''} {user.last_name or ''}",
-        "time": int(time.time())
-    }
-    save()
-
-    await e.reply("📌 User added to OSINT tracking")
-
-
-@bot.on(events.NewMessage(pattern=r"\.untrackuser$"))
-async def untrack_user(e):
-    uid = await resolve_user(e)
-    DATA["track"].pop(str(uid), None)
-    save()
-    await e.reply("❌ User removed from tracking")
-
-
-@bot.on(events.NewMessage(pattern=r"\.tracklist$"))
-async def track_list(e):
-    if not DATA["track"]:
-        return await e.reply("📭 No tracked users")
-
-    txt = "📌 **TRACKED USERS**\n\n"
-    for uid, d in DATA["track"].items():
-        t = datetime.fromtimestamp(d["time"]).strftime("%d %b %Y")
-        txt += f"• `{uid}` | since `{t}`\n"
-
-    await e.reply(txt)
