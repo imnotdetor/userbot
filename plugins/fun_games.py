@@ -67,7 +67,7 @@ async def tictactoe(e):
 # =====================
 # BATTLE GAME (HP PvP)
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.battle(?:\s+.+)?$"))
+@bot.on(events.NewMessage(pattern=r"\.battle(?:\s+@?.+)?$"))
 async def battle(e):
     try:
         await e.delete()
