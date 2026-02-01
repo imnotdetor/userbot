@@ -93,10 +93,21 @@ async def hackip(e):
         m = await e.reply("📡 Tracing IP...")
 
         frames = [
-            f"{target}📡 Routing packets...",
-            f"{target}🔍 Scanning ports...",
-            f"{target}🌍 IP FOUND: `{fake_ip}`",
-            f"{target}✅ Trace complete"
+    f"{target}📡 Initializing IP tracer...",
+    f"{target}📡 Routing packets ░░░░░░",
+    f"{target}📡 Routing packets ███░░░",
+    f"{target}🛰 Fetching routing tables...",
+    f"{target}🔍 Scanning open ports...",
+    f"{target}🔍 Analyzing packet flow...",
+    f"{target}⚠️ Firewall detected",
+    f"{target}⚠️ Firewall bypassed ✔️",
+    f"{target}🌍 Resolving IP address...",
+    f"{target}🌍 IP FOUND: `{fake_ip}`",
+    f"{target}📍 Locating geographic region...",
+    f"{target}📍 Location: Unknown 😏",
+    f"{target}✅ **IP TRACE COMPLETE**\n\n"
+    f"🌍 IP: `{fake_ip}`\n"
+    f"📍 Location: Unknown 😏"
         ]
 
         await animate(m, frames, 0.9)
