@@ -55,7 +55,7 @@ async def tictactoe(e):
         frames = [
             "❌ ⭕ ❌\n⭕ ❌ ⭕\n⬜ ⭕ ❌",
             "❌ ⭕ ❌\n⭕ ❌ ⭕\n❌ ⭕ ❌",
-            "🏁 **GAME OVER**\n❌ Wins 😎"
+            "🏁 **GAME OVER**\nYou Wins 😎"
         ]
         await reply_animate(e, frames, 0.9)
     except Exception as ex:
@@ -126,6 +126,7 @@ async def fake_virus(e):
             "🦠 Infecting system...",
             "📂 Deleting files...",
             "⚠️ System unstable...",
+            "💥 System crashed...",
             "😈 Just kidding!\n❌ No virus detected"
         ]
         await reply_animate(e, frames, 0.8)
