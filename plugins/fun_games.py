@@ -300,24 +300,31 @@ async def snake_game(e):
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.battlestats$"))
 async def battlestats(e):
-    try:
-        await e.delete()
-        db = load_snake_db()
+    await e.delete()
+    db = load_snake_db()
 
-        if not db["wins"]:
-            m = await e.reply("📊 No battles recorded yet")
-            await asyncio.sleep(10)
-            await m.delete()
-            return
+    if not db["players"]:
+        return await e.reply("📊 No battles recorded yet")
 
-        text = "🐍 **SNAKE BATTLE LEADERBOARD** 🐍\n\n"
-        for data in db["wins"].values():
-            text += f"• **{data['name']}** → `{data['wins']}` wins\n"
+    text = "🐍 **SNAKE LEADERBOARD** 🏆\n\n"
 
-        m = await e.reply(text)
-        await asyncio.sleep(20)
-        await m.delete()
+    sorted_players = sorted(
+        db["players"].values(),
+        key=lambda x: x["wins"],
+        reverse=True
+    )
 
-    except Exception as ex:
+    for i, p in enumerate(sorted_players[:10], start=1):
+        text += (
+            f"**{i}. {p['name']}**\n"
+            f"🏆 Wins: `{p['wins']}` | ❌ Loss: `{p['losses']}`\n"
+            f"⚔ Battles: `{p['battles']}`\n\n"
+        )
+
+    m = await e.reply(text)
+    await asyncio.sleep(15)
+    await m.delete()
+
+except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
         await log_error(bot, PLUGIN_NAME, ex)
