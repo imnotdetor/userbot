@@ -164,29 +164,134 @@ async def scan(e):
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.rps$"))
 async def rps(e):
-    target = await get_target(e)
-    await e.delete()
-    m = await e.reply(
-        f"{target}✊✋✌️ Result: **{random.choice(['ROCK','PAPER','SCISSORS'])}**"
-    )
-    await auto_cleanup(m)
+    try:
+        await e.delete()
+
+        me = await e.get_sender()
+        p1_id = str(me.id)
+        p1_name = me.first_name or "Player"
+
+        if not e.is_reply:
+            m = await e.reply("❌ Reply to someone to duel in RPS")
+            await auto_cleanup(m, 6)
+            return
+
+        r = await e.get_reply_message()
+        u = await r.get_sender()
+        p2_id = str(u.id)
+        p2_name = u.first_name or "Opponent"
+
+        choices = ["ROCK ✊", "PAPER ✋", "SCISSORS ✌️"]
+        c1 = random.choice(choices)
+        c2 = random.choice(choices)
+
+        def winner(a, b):
+            if a == b:
+                return None
+            wins = {
+                "ROCK ✊": "SCISSORS ✌️",
+                "PAPER ✋": "ROCK ✊",
+                "SCISSORS ✌️": "PAPER ✋"
+            }
+            return a if wins[a] == b else b
+
+        win_choice = winner(c1, c2)
+
+        if win_choice is None:
+            text = (
+                f"✊✋✌️ **RPS DUEL**\n\n"
+                f"{p1_name}: {c1}\n"
+                f"{p2_name}: {c2}\n\n"
+                "🤝 **DRAW**"
+            )
+            m = await e.reply(text)
+            await auto_cleanup(m)
+            return
+
+        if win_choice == c1:
+            winner_id, winner_name = p1_id, p1_name
+            loser_id, loser_name = p2_id, p2_name
+        else:
+            winner_id, winner_name = p2_id, p2_name
+            loser_id, loser_name = p1_id, p1_name
+
+        record_match(
+            game="rps",
+            winner_id=winner_id,
+            winner_name=winner_name,
+            loser_id=loser_id,
+            loser_name=loser_name
+        )
+
+        text = (
+            f"✊✋✌️ **RPS DUEL**\n\n"
+            f"{p1_name}: {c1}\n"
+            f"{p2_name}: {c2}\n\n"
+            f"🏆 **Winner:** {winner_name}"
+        )
+
+        m = await e.reply(text)
+        await auto_cleanup(m)
+
+    except Exception as ex:
+        mark_plugin_error(PLUGIN_NAME, ex)
 
 # =====================
 # RACE (REPLY BASED)
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.race$"))
 async def race(e):
-    target = await get_target(e)
-    await e.delete()
-    m = await e.reply("🏎 Race starting...")
+    try:
+        await e.delete()
 
-    frames = [
-        f"{target}🏎💨",
-        f"{target}🏎💨💨",
-        f"{target}🏁 **WINNER!**"
-    ]
-    await animate(m, frames, 0.6)
-    await auto_cleanup(m)
+        me = await e.get_sender()
+        p1_id = str(me.id)
+        p1_name = me.first_name or "Player"
+
+        if not e.is_reply:
+            m = await e.reply("❌ Reply to someone to start a race")
+            await auto_cleanup(m, 6)
+            return
+
+        r = await e.get_reply_message()
+        u = await r.get_sender()
+        p2_id = str(u.id)
+        p2_name = u.first_name or "Opponent"
+
+        m = await e.reply("🏎 **RACE STARTING...**")
+        await asyncio.sleep(1)
+
+        winner_first = random.choice([True, False])
+
+        if winner_first:
+            winner_id, winner_name = p1_id, p1_name
+            loser_id, loser_name = p2_id, p2_name
+        else:
+            winner_id, winner_name = p2_id, p2_name
+            loser_id, loser_name = p1_id, p1_name
+
+        frames = [
+            f"🏎 {p1_name} 💨\n🏎 {p2_name}",
+            f"🏎 {p1_name} 💨💨\n🏎 {p2_name} 💨",
+            f"🏁 **WINNER:** {winner_name}"
+        ]
+
+        for f in frames:
+            await m.edit(f)
+            await asyncio.sleep(0.8)
+
+        record_match(
+            game="race",
+            winner_id=winner_id,
+            winner_name=winner_name,
+            loser_id=loser_id,
+            loser_name=loser_name
+        )
+
+        await auto_cleanup(m)
+
+    except Exception as ex:
+        mark_plugin_error(PLUGIN_NAME, ex)
 
 # =====================
 # MATH (REPLY BASED)
