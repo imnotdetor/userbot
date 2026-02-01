@@ -24,7 +24,7 @@ print("✔ fun.py loaded")
 # =====================
 register_help(
     "fun",
-    ".slap (reply / mention)\n"
+    ". slap (reply / mention)\n"
     ".hug (reply / mention)\n"
     ".kiss (reply / mention)\n"
     ".poke (reply / mention)\n"
