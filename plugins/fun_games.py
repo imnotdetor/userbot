@@ -156,7 +156,7 @@ def today():
     return str(date.today())
 
 def hp_bar(hp):
-    blocks = max(0, min(10, int(hp / 10)))
+    blocks = max(0, min(10, hp // 10))
     return "█" * blocks + "░" * (10 - blocks)
 
 @bot.on(events.NewMessage(pattern=r"\.snake$"))
@@ -165,21 +165,20 @@ async def snake_game(e):
         await e.delete()
         db = load_snake_db()
 
-        # reset daily stats
+        # daily reset
         if db["date"] != today():
             db["date"] = today()
             db["wins"] = {}
 
-        # detect players
-        players = []
-
+        # opponent detect
         if e.is_reply:
             r = await e.get_reply_message()
             u = await r.get_sender()
-            players.append((str(u.id), u.first_name or "User"))
-
-        if not players:
-            players = [("snakeB", "Snake B")]
+            opp_id = str(u.id)
+            opp_name = u.first_name or "User"
+        else:
+            opp_id = "snakeB"
+            opp_name = "Snake B"
 
         m = await e.reply("🐍 **SNAKE BATTLE INITIALIZING...**")
 
@@ -188,23 +187,23 @@ async def snake_game(e):
 
         # ===== BEST OF 3 =====
         for round_no in range(1, 4):
-            hp_a = 100
-            hp_b = 100
+            hp_a, hp_b = 100, 100
             poison_b = 0
 
             await m.edit(
                 f"🎮 **ROUND {round_no}**\n\n"
-                f"🐍 Snake A: `{hp_bar(hp_a)}` {hp_a}%\n"
-                f"🐍 {players[0][1]}: `{hp_bar(hp_b)}` {hp_b}%"
+                f"🐍 **Snake A**\n"
+                f"`[{hp_bar(hp_a)}]` {hp_a}%\n\n"
+                f"🐍 **{opp_name}**\n"
+                f"`[{hp_bar(hp_b)}]` {hp_b}%"
             )
             await asyncio.sleep(1)
 
             while hp_a > 0 and hp_b > 0:
                 attacker = random.choice(["A", "B"])
 
-                # abilities
                 crit = random.random() < 0.25
-                poison = random.random() < 0.2
+                poison = random.random() < 0.20
                 regen = random.random() < 0.15
 
                 dmg = random.randint(10, 20)
@@ -215,18 +214,16 @@ async def snake_game(e):
                     hp_b -= dmg
                     if poison:
                         poison_b = 2
-                    text = f"🐍 Snake A attacks `{players[0][1]}`"
+                    text = f"🐍 Snake A attacks `{opp_name}`"
                 else:
                     hp_a -= dmg
-                    text = f"🐍 {players[0][1]} attacks Snake A"
+                    text = f"🐍 {opp_name} attacks Snake A"
 
-                # poison tick
                 if poison_b > 0:
                     hp_b -= 5
                     poison_b -= 1
                     text += " ☠️ POISON"
 
-                # regen
                 if regen:
                     hp_a = min(100, hp_a + 5)
                     text += " 💚 REGEN"
@@ -236,39 +233,70 @@ async def snake_game(e):
 
                 await m.edit(
                     f"{text}{' 💥 CRIT' if crit else ''}\n\n"
-                    f"🐍 Snake A: `{hp_bar(hp_a)}` {hp_a}%\n"
-                    f"🐍 {players[0][1]}: `{hp_bar(hp_b)}` {hp_b}%"
+                    f"🐍 **Snake A**\n"
+                    f"`[{hp_bar(hp_a)}]` {hp_a}%\n\n"
+                    f"🐍 **{opp_name}**\n"
+                    f"`[{hp_bar(hp_b)}]` {hp_b}%"
                 )
-                await asyncio.sleep(0.9)
+                await asyncio.sleep(1.3)
 
             if hp_a > hp_b:
                 wins_a += 1
                 await m.edit(f"🏆 **ROUND {round_no} WINNER:** Snake A")
             else:
                 wins_b += 1
-                await m.edit(f"🏆 **ROUND {round_no} WINNER:** {players[0][1]}")
+                await m.edit(f"🏆 **ROUND {round_no} WINNER:** {opp_name}")
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(1.8)
 
-        # ===== FINAL =====
+        # ===== FINAL + STATS SAVE =====
         if wins_b > wins_a:
-            key = players[0][0]
-            db["wins"][key] = db["wins"].get(key, 0) + 1
-            save_snake_db(db)
-            winner = players[0][1]
+            db["wins"].setdefault(opp_id, {
+                "name": opp_name,
+                "wins": 0
+            })
+            db["wins"][opp_id]["wins"] += 1
+            winner = opp_name
         else:
+            db["wins"].setdefault("snakeA", {
+                "name": "Snake A",
+                "wins": 0
+            })
+            db["wins"]["snakeA"]["wins"] += 1
             winner = "Snake A"
+
+        save_snake_db(db)
 
         await m.edit(
             f"🏁 **MATCH OVER**\n\n"
-            f"Snake A Wins: `{wins_a}`\n"
-            f"{players[0][1]} Wins: `{wins_b}`\n\n"
+            f"🐍 Snake A Wins: `{wins_a}`\n"
+            f"🐍 {opp_name} Wins: `{wins_b}`\n\n"
             f"🥇 **FINAL WINNER:** `{winner}`\n\n"
             f"📅 Daily Wins Tracked ✔"
         )
 
         await asyncio.sleep(15)
         await m.delete()
+
+    except Exception as ex:
+        mark_plugin_error(PLUGIN_NAME, ex)
+        await log_error(bot, PLUGIN_NAME, ex)
+
+# =====================
+# BATTLE STATS
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.battlestats$"))
+async def battlestats(e):
+    try:
+        db = load_snake_db()
+        if not db["wins"]:
+            return await e.reply("📊 No battles recorded yet")
+
+        text = "🐍 **SNAKE BATTLE STATS** 🐍\n\n"
+        for data in db["wins"].values():
+            text += f"• 🐍 **{data['name']}** → `{data['wins']}` wins\n"
+
+        await e.reply(text)
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
