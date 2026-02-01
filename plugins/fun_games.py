@@ -170,7 +170,7 @@ async def snake_game(e):
             db["date"] = today()
             db["wins"] = {}
 
-        # opponent detect
+# opponent detect
         if e.is_reply:
             r = await e.get_reply_message()
             u = await r.get_sender()
@@ -180,8 +180,22 @@ async def snake_game(e):
             opp_id = "snakeB"
             opp_name = "Snake B"
 
+        # ===== INIT MESSAGE =====
         m = await e.reply("🐍 **SNAKE BATTLE INITIALIZING...**")
 
+        init_frames = [
+            "🐍 **SNAKE BATTLE INITIALIZING...**",
+            "🐍 Loading venom modules...",
+            "🐍 Preparing arena...",
+            "🐍 Calculating abilities...",
+            "🐍 **BATTLE STARTING** ⚔️"
+        ]
+
+        for f in init_frames:
+            await m.edit(f)
+            await asyncio.sleep(0.6)
+
+        # ===== MATCH DATA =====
         wins_a = 0
         wins_b = 0
 
