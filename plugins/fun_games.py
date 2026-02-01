@@ -1,6 +1,7 @@
 import asyncio
 import random
 from telethon import events
+from utils.leaderboard_helper import record_match
 
 from userbot import bot
 from utils.help_registry import register_help
