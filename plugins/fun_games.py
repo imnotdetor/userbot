@@ -402,6 +402,9 @@ async def battlestats(e):
         await asyncio.sleep(20)
         await m.delete()
 
+   except Exception as ex:
+         mark_plugin_error(PLUGIN_NAME, ex)
+         await log_error(bot, PLUGIN_NAME, ex)
 # =====================
 # MVP
 # =====================
