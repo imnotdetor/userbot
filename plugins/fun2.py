@@ -26,12 +26,15 @@ register_help(
     ".hackip (reply)\n"
     ".decrypt (reply)\n"
     ".scan (reply)\n"
+    ".rps (reply)\n"
+    ".race (reply)\n"
+    ".math (reply)\n"
+    ".shoot (reply)\n"
     ".pingpong\n"
-    ".dice | .coin | .slot | .rps\n"
-    ".race | .loading | .math | .love | .shoot\n\n"
-    "• Reply-based fake hacking games\n"
-    "• Animations via message edit\n"
-    "• 100% fun, zero harm 😄"
+    ".dice | .coin | .slot | .love\n\n"
+    "• Reply-based fun & fake hacking games\n"
+    "• Auto delete animations\n"
+    "• Just for fun 😄"
 )
 
 # =====================
@@ -46,82 +49,88 @@ async def get_target(e):
     if e.is_reply:
         r = await e.get_reply_message()
         u = await r.get_sender()
-        name = u.first_name or "User"
-        return f"🎯 **Target:** {name}\n\n"
-    return ""
+        return f"🎯 **Target:** {u.first_name or 'User'}\n\n"
+    return "🎯 **Target:** Unknown\n\n"
+
+async def auto_cleanup(msg, delay=15):
+    await asyncio.sleep(delay)
+    await msg.delete()
 
 # =====================
 # HACK
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.hack$"))
-async def hack_game(e):
+async def hack(e):
     try:
         target = await get_target(e)
         await e.delete()
 
         m = await e.reply("💻 Initializing hack module...")
         frames = [
-            f"{target}💻 Connecting █▒▒▒▒▒ 10%",
-            f"{target}💻 Firewall bypass ███▒▒ 30%",
-            f"{target}💻 Injecting █████▒ 55%",
-            f"{target}💻 Cracking ███████ 80%",
-            f"{target}✅ **HACK COMPLETE** 🔓"
+            f"{target}💻 Connecting █▒▒▒ 10%",
+            f"{target}💻 Firewall bypass ███▒ 40%",
+            f"{target}💻 Injecting payload █████ 70%",
+            f"{target}🔓 ACCESS GRANTED",
+            f"{target}✅ **HACK COMPLETE** 😎"
         ]
         await animate(m, frames, 0.8)
+        await auto_cleanup(m)
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
         await log_error(bot, PLUGIN_NAME, ex)
 
 # =====================
-# HACK IP
+# HACK IP (REPLY BASED)
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.hackip$"))
-async def hack_ip(e):
+async def hackip(e):
     try:
         target = await get_target(e)
-        fake_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
         await e.delete()
 
+        fake_ip = ".".join(str(random.randint(1,255)) for _ in range(4))
         m = await e.reply("📡 Tracing IP...")
+
         frames = [
             f"{target}📡 Routing packets...",
             f"{target}🔍 Scanning ports...",
             f"{target}🌍 IP FOUND: `{fake_ip}`",
-            f"{target}✅ Trace complete 😎"
+            f"{target}✅ Trace complete"
         ]
+
         await animate(m, frames, 0.9)
+        await auto_cleanup(m)
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
-        await log_error(bot, PLUGIN_NAME, ex)
 
 # =====================
 # DECRYPT
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.decrypt$"))
-async def decrypt_game(e):
+async def decrypt(e):
     try:
         target = await get_target(e)
         await e.delete()
 
         m = await e.reply("🔐 Decryption started...")
         frames = [
-            f"{target}🔐 AES module loaded",
-            f"{target}🔐 Bruteforce ░░░░",
-            f"{target}🔓 DECRYPTED ✔️",
+            f"{target}🔐 AES Loaded",
+            f"{target}🔐 Bruteforce ░░░",
+            f"{target}🔓 FILE DECRYPTED ✔️"
         ]
         await animate(m, frames, 0.8)
+        await auto_cleanup(m)
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
-        await log_error(bot, PLUGIN_NAME, ex)
 
 # =====================
 # SCAN
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.scan$"))
-async def scan_game(e):
+async def scan(e):
     try:
         target = await get_target(e)
         await e.delete()
@@ -134,37 +143,70 @@ async def scan_game(e):
             f"{target}✅ No threats found"
         ]
         await animate(m, frames, 0.6)
-
-    except Exception as ex:
-        mark_plugin_error(PLUGIN_NAME, ex)
-        await log_error(bot, PLUGIN_NAME, ex)
-
-# =====================
-# PING PONG
-# =====================
-@bot.on(events.NewMessage(pattern=r"\.pingpong$"))
-async def pingpong(e):
-    try:
-        await e.delete()
-        m = await e.reply("🏓 Match starting...")
-        frames = [
-            "🏓 |●        |",
-            "🏓 |   ●     |",
-            "🏓 |      ●  |",
-            "🏓 |   ●     |",
-            "🏓 |●        |",
-        ]
-        for _ in range(3):
-            for f in frames:
-                await m.edit(f"🎮 **PING PONG**\n\n`{f}`")
-                await asyncio.sleep(0.35)
-        await m.edit("🏁 **MATCH OVER** 🏓\nGG 😄")
+        await auto_cleanup(m)
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
 
 # =====================
-# SMALL GAMES
+# RPS (REPLY BASED)
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.rps$"))
+async def rps(e):
+    target = await get_target(e)
+    await e.delete()
+    m = await e.reply(
+        f"{target}✊✋✌️ Result: **{random.choice(['ROCK','PAPER','SCISSORS'])}**"
+    )
+    await auto_cleanup(m)
+
+# =====================
+# RACE (REPLY BASED)
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.race$"))
+async def race(e):
+    target = await get_target(e)
+    await e.delete()
+    m = await e.reply("🏎 Race starting...")
+
+    frames = [
+        f"{target}🏎💨",
+        f"{target}🏎💨💨",
+        f"{target}🏁 **WINNER!**"
+    ]
+    await animate(m, frames, 0.6)
+    await auto_cleanup(m)
+
+# =====================
+# MATH (REPLY BASED)
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.math$"))
+async def math(e):
+    target = await get_target(e)
+    await e.delete()
+    a, b = random.randint(1,50), random.randint(1,50)
+    m = await e.reply(f"{target}🧮 Solve:\n**{a} + {b} = ?**")
+    await auto_cleanup(m)
+
+# =====================
+# SHOOT (REPLY BASED)
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.shoot$"))
+async def shoot(e):
+    target = await get_target(e)
+    await e.delete()
+
+    m = await e.reply("🎯 Target locked")
+    frames = [
+        f"{target}🎯 Aiming",
+        f"{target}💥 BOOM",
+        f"{target}☠️ Target down"
+    ]
+    await animate(m, frames, 0.6)
+    await auto_cleanup(m)
+
+# =====================
+# NON-REPLY SMALL GAMES (UNCHANGED)
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.dice$"))
 async def dice(e):
@@ -183,30 +225,12 @@ async def slot(e):
         txt += "\n🎉 JACKPOT!"
     await e.reply(txt)
 
-@bot.on(events.NewMessage(pattern=r"\.rps$"))
-async def rps(e):
-    await e.reply(f"✊✋✌️ **{random.choice(['ROCK','PAPER','SCISSORS'])}**")
-
-@bot.on(events.NewMessage(pattern=r"\.race$"))
-async def race(e):
-    m = await e.reply("🏎 Ready...")
-    await animate(m, ["🏎💨","🏎💨💨","🏁 WINNER!"], 0.6)
-
-@bot.on(events.NewMessage(pattern=r"\.loading$"))
-async def loading(e):
-    m = await e.reply("Loading ░░░")
-    await animate(m, ["Loading █░░","Loading ██░","Loading ███","✅ Done"], 0.4)
-
-@bot.on(events.NewMessage(pattern=r"\.math$"))
-async def math(e):
-    a,b = random.randint(1,50), random.randint(1,50)
-    await e.reply(f"🧮 {a} + {b} = ?")
-
 @bot.on(events.NewMessage(pattern=r"\.love$"))
 async def love(e):
-    await e.reply(f"❤️ Love: **{random.randint(1,100)}%**")
+    await e.reply(f"❤️ Love Meter: **{random.randint(1,100)}%**")
 
-@bot.on(events.NewMessage(pattern=r"\.shoot$"))
-async def shoot(e):
-    m = await e.reply("🎯 Aiming...")
-    await animate(m, ["🎯 Aim","💥 BOOM","☠️ Target down"], 0.6)
+@bot.on(events.NewMessage(pattern=r"\.pingpong$"))
+async def pingpong(e):
+    m = await e.reply("🏓 Ping Pong...")
+    frames = ["🏓 ●","🏓   ●","🏓      ●","🏁 GG"]
+    await animate(m, frames, 0.4)
