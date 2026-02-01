@@ -67,7 +67,7 @@ async def tictactoe(e):
 # =====================
 # BATTLE GAME (HP PvP)
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.battle(?:\s+@?\w+)?$"))
+@bot.on(events.NewMessage(pattern=r"\.battle(?:\s+.+)?$"))
 async def battle(e):
     try:
         await e.delete()
@@ -357,32 +357,46 @@ async def snake_game(e):
 async def battlestats(e):
     try:
         await e.delete()
-
         db = load_lb()
-        game = db.get("snake", {}).get("players", {})
 
-        if not game:
-            m = await e.reply("📊 No snake battles yet")
-            await asyncio.sleep(8)
-            await m.delete()
-            return
+        text = ""
 
-        players = sorted(
-            game.values(),
-            key=lambda p: (p["wins"], -p["losses"], p["battles"]),
-            reverse=True
-        )
-
-        text = "🐍 **SNAKE LEADERBOARD** 🏆\n\n"
-        for i, p in enumerate(players[:10], 1):
-            text += (
-                f"**{i}. {p['name']}**\n"
-                f"🏆 Wins: `{p['wins']}` | ❌ Losses: `{p['losses']}`\n"
-                f"⚔ Battles: `{p['battles']}`\n\n"
+        # ---------- SNAKE ----------
+        snake = db.get("snake", {}).get("players", {})
+        if snake:
+            text += "🐍 **SNAKE LEADERBOARD** 🏆\n\n"
+            players = sorted(
+                snake.values(),
+                key=lambda p: (p["wins"], -p["losses"], p["battles"]),
+                reverse=True
             )
+            for i, p in enumerate(players[:5], 1):
+                text += (
+                    f"**{i}. {p['name']}**\n"
+                    f"🏆 {p['wins']} | ❌ {p['losses']} | ⚔ {p['battles']}\n\n"
+                )
+        else:
+            text += "🐍 **SNAKE LEADERBOARD**\nNo battles yet\n\n"
+
+        # ---------- BATTLE ----------
+        battle = db.get("battle", {}).get("players", {})
+        if battle:
+            text += "⚔️ **BATTLE LEADERBOARD** 🏆\n\n"
+            players = sorted(
+                battle.values(),
+                key=lambda p: (p["wins"], -p["losses"], p["battles"]),
+                reverse=True
+            )
+            for i, p in enumerate(players[:5], 1):
+                text += (
+                    f"**{i}. {p['name']}**\n"
+                    f"🏆 {p['wins']} | ❌ {p['losses']} | ⚔ {p['battles']}\n\n"
+                )
+        else:
+            text += "⚔️ **BATTLE LEADERBOARD**\nNo battles yet"
 
         m = await e.reply(text)
-        await asyncio.sleep(15)
+        await asyncio.sleep(20)
         await m.delete()
 
     except Exception as ex:
@@ -409,6 +423,39 @@ async def mvp_stats(e):
 
         text = (
             "🏆 **MVP OF THE SNAKE BATTLES** 🏆\n\n"
+            f"👑 **{best['name']}**\n\n"
+            f"🏆 Wins: `{best['wins']}`\n"
+            f"❌ Losses: `{best['losses']}`\n"
+            f"⚔ Battles: `{best['battles']}`\n"
+            f"📊 Win Rate: `{win_rate}%`\n"
+            f"⭐ MVP Score: `{score}`"
+        )
+
+        m = await e.reply(text)
+        await asyncio.sleep(15)
+        await m.delete()
+
+    except Exception as ex:
+        mark_plugin_error(PLUGIN_NAME, ex)
+        await log_error(bot, PLUGIN_NAME, ex)
+
+@bot.on(events.NewMessage(pattern=r"\.mvp battle$"))
+async def battle_mvp(e):
+    try:
+        await e.delete()
+        best = get_mvp("battle")
+
+        if not best:
+            m = await e.reply("🏆 No Battle MVP yet")
+            await asyncio.sleep(8)
+            await m.delete()
+            return
+
+        win_rate = round((best["wins"] / best["battles"]) * 100, 1)
+        score = (best["wins"] * 3) + best["battles"]
+
+        text = (
+            "⚔️ **BATTLE MVP** 🏆\n\n"
             f"👑 **{best['name']}**\n\n"
             f"🏆 Wins: `{best['wins']}`\n"
             f"❌ Losses: `{best['losses']}`\n"
