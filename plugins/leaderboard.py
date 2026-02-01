@@ -15,7 +15,7 @@ PLUGIN_NAME = "leaderboard.py"
 # PLUGIN LOAD
 # =====================
 mark_plugin_loaded(PLUGIN_NAME)
-print("✔ stats.py loaded (LEADERBOARD MODE)")
+print("✔ leaderboard.py loaded (LEADERBOARD MODE)")
 
 # =====================
 # HELP
@@ -123,7 +123,7 @@ async def mvp_battle(e):
             await m.delete()
             return
 
-        win_rate = round((best["wins"] / best["battles"]) * 100, 1)
+        win_rate = round((best["wins"] / best["battles"]) * 100, 1) if best["battles"] else 0
 
         m = await e.reply(
             "⚔️ **BATTLE MVP** 🏆\n\n"
