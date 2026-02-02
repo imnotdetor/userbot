@@ -94,28 +94,3 @@ async def buy(e):
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
         await log_error(bot, PLUGIN_NAME, ex)
-
-# =====================
-# INVENTORY
-# =====================
-@bot.on(events.NewMessage(pattern=r"\.inventory$"))
-async def inventory(e):
-    try:
-        _, player = get_player(e.sender_id, e.sender.first_name)
-        items = player.get("items", {})
-
-        if not items:
-            await e.reply("🎒 Inventory empty")
-            return
-
-        text = "🎒 **YOUR INVENTORY**\n\n"
-        for k, v in items.items():
-            item = ITEMS.get(k)
-            if item:
-                text += f"{item['name']} ×{v}\n"
-
-        await e.reply(text)
-
-    except Exception as ex:
-        mark_plugin_error(PLUGIN_NAME, ex)
-        await log_error(bot, PLUGIN_NAME, ex)
