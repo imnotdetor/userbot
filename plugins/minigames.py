@@ -31,14 +31,22 @@ register_help(
 )
 
 # =====================
-# GLOBAL GAME STORE
+# CONFIG
 # =====================
+GAME_TIME = 30
+AUTO_DEL = 5  # seconds
 active_games = {}
 
-GAME_TIME = 30  # seconds
+# =====================
+# TEMP MESSAGE HELPER
+# =====================
+async def temp_reply(chat_id, text, reply_to=None, delay=AUTO_DEL):
+    m = await bot.send_message(chat_id, text, reply_to=reply_to)
+    await asyncio.sleep(delay)
+    await m.delete()
 
 # =====================
-# GUESS THE NUMBER
+# GUESS GAME
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.guess (\d+) (\d+)"))
 async def guess_game(e):
@@ -49,28 +57,26 @@ async def guess_game(e):
         await e.delete()
         lo = int(e.pattern_match.group(1))
         hi = int(e.pattern_match.group(2))
-
         if lo >= hi:
             return
 
-        num = random.randint(lo, hi)
+        ans = random.randint(lo, hi)
         msg = await e.reply(
             f"🎯 **GUESS THE NUMBER**\n\n"
-            f"Range: `{lo} - {hi}`\n"
-            f"⏱ {GAME_TIME} seconds\n"
+            f"Range: `{lo}-{hi}`\n"
+            f"⏱ {GAME_TIME}s\n"
             f"Reply with number"
         )
 
         active_games[msg.id] = {
             "type": "guess",
-            "answer": num,
+            "answer": ans,
             "end": time.time() + GAME_TIME
         }
 
         await asyncio.sleep(GAME_TIME)
-
         if msg.id in active_games:
-            await msg.reply(f"⏰ Time up!\nAnswer was `{num}`")
+            await msg.reply(f"⏰ Time up!\nAnswer was `{ans}`")
             del active_games[msg.id]
 
     except Exception as ex:
@@ -87,6 +93,7 @@ async def spin_game(e):
 
     await e.delete()
     msg = await e.reply("🍾 **SPIN THE BOTTLE**\n\nReply to join!")
+
     active_games[msg.id] = {
         "type": "spin",
         "players": set(),
@@ -100,8 +107,8 @@ async def spin_game(e):
         await msg.reply("❌ No players joined")
         return
 
-    winner = random.choice(list(game["players"]))
-    await msg.reply(f"🍾 Bottle points to 👉 **{winner}** 😏")
+    uid, name = random.choice(list(game["players"]))
+    await msg.reply(f"🍾 Bottle points to 👉 **{name}** 😏")
 
 # =====================
 # ROULETTE
@@ -113,10 +120,11 @@ async def roulette_game(e):
 
     await e.delete()
     num = random.randint(0, 9)
+
     msg = await e.reply(
         "🎰 **ROULETTE**\n\n"
         "Guess number `0-9`\n"
-        f"⏱ {GAME_TIME} seconds"
+        f"⏱ {GAME_TIME}s"
     )
 
     active_games[msg.id] = {
@@ -126,7 +134,6 @@ async def roulette_game(e):
     }
 
     await asyncio.sleep(GAME_TIME)
-
     if msg.id in active_games:
         await msg.reply(f"⏰ Time up! Number was `{num}`")
         del active_games[msg.id]
@@ -146,7 +153,7 @@ async def mathrace_game(e):
     msg = await e.reply(
         f"➕ **MATH RACE**\n\n"
         f"{a} + {b} = ?\n"
-        f"⏱ {GAME_TIME} seconds"
+        f"⏱ {GAME_TIME}s"
     )
 
     active_games[msg.id] = {
@@ -156,7 +163,6 @@ async def mathrace_game(e):
     }
 
     await asyncio.sleep(GAME_TIME)
-
     if msg.id in active_games:
         await msg.reply(f"❌ No winner\nAnswer: `{ans}`")
         del active_games[msg.id]
@@ -175,7 +181,7 @@ async def typefast_game(e):
     msg = await e.reply(
         f"⌨️ **TYPE FAST**\n\n"
         f"Type exactly:\n`{word}`\n"
-        f"⏱ {GAME_TIME} seconds"
+        f"⏱ {GAME_TIME}s"
     )
 
     active_games[msg.id] = {
@@ -185,7 +191,6 @@ async def typefast_game(e):
     }
 
     await asyncio.sleep(GAME_TIME)
-
     if msg.id in active_games:
         await msg.reply("⏰ Too slow!")
         del active_games[msg.id]
@@ -204,7 +209,7 @@ async def bomb_game(e):
     msg = await e.reply(
         f"💣 **BOMB GAME**\n\n"
         f"❌ Do NOT type: `{banned}`\n"
-        f"⏱ {GAME_TIME} seconds"
+        f"⏱ {GAME_TIME}s"
     )
 
     active_games[msg.id] = {
@@ -214,7 +219,6 @@ async def bomb_game(e):
     }
 
     await asyncio.sleep(GAME_TIME)
-
     if msg.id in active_games:
         await msg.reply("🎉 Bomb defused!")
         del active_games[msg.id]
@@ -242,7 +246,6 @@ async def react_game(e):
     }
 
     await asyncio.sleep(GAME_TIME)
-
     if msg.id in active_games:
         await msg.reply("⏰ Too slow!")
         del active_games[msg.id]
@@ -261,8 +264,7 @@ async def game_replies(e):
         if not game:
             return
 
-        # ⏱ TIME SAFETY CHECK
-        if time.time() > game.get("end", 0):
+        if time.time() > game["end"]:
             active_games.pop(r.id, None)
             return
 
@@ -270,36 +272,41 @@ async def game_replies(e):
         name = e.sender.first_name or "User"
         text = e.raw_text.strip()
 
-        # ---------- GUESS / ROULETTE / MATH ----------
+        # GUESS / ROULETTE / MATH
         if game["type"] in ("guess", "roulette", "math"):
-            if text.isdigit() and int(text) == game["answer"]:
-                await e.reply(f"🏆 **WINNER:** {name}\n+10 💰")
-                add_coin(uid, name, 10)
-                del active_games[r.id]
+            if text.isdigit():
+                if int(text) == game["answer"]:
+                    await e.reply(f"🏆 **WINNER:** {name}\n+10 💰")
+                    add_coin(uid, name, 10)
+                    del active_games[r.id]
+                else:
+                    await temp_reply(e.chat_id, f"❌ Wrong guess, **{name}**", reply_to=e.id)
 
-        # ---------- TYPE FAST ----------
+        # TYPE FAST
         elif game["type"] == "type":
             if text == game["answer"]:
                 await e.reply(f"⌨️ **FASTEST:** {name}\n+10 💰")
                 add_coin(uid, name, 10)
                 del active_games[r.id]
 
-        # ---------- BOMB ----------
+        # BOMB
         elif game["type"] == "bomb":
             if game["ban"] in text.lower():
                 await e.reply(f"💥 **BOOM! {name} exploded**")
                 del active_games[r.id]
 
-        # ---------- REACT ----------
+        # REACT
         elif game["type"] == "react":
             if text == game["emoji"]:
                 await e.reply(f"⚡ **FASTEST:** {name}\n+10 💰")
                 add_coin(uid, name, 10)
                 del active_games[r.id]
 
-        # ---------- SPIN ----------
+        # SPIN JOIN
         elif game["type"] == "spin":
-            game["players"].add(name)
+            if uid not in {u for u, _ in game["players"]}:
+                game["players"].add((uid, name))
+                await temp_reply(e.chat_id, f"✅ **{name} joined the spin!**", reply_to=e.id)
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
