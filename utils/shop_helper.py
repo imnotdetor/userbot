@@ -1,6 +1,7 @@
 # utils/shop_helper.py
 
 ITEMS = {
+
     # =====================
     # COMMON ITEMS (BATTLE)
     # =====================
@@ -14,6 +15,7 @@ ITEMS = {
         "consumable": False,
         "category": "battle"
     },
+
     "iron_sword": {
         "name": "⚔️ Iron Sword",
         "price": 120,
@@ -24,6 +26,7 @@ ITEMS = {
         "consumable": False,
         "category": "battle"
     },
+
     "iron_shield": {
         "name": "🛡 Iron Shield",
         "price": 80,
@@ -48,6 +51,7 @@ ITEMS = {
         "consumable": False,
         "category": "battle"
     },
+
     "golden_armor": {
         "name": "🥋 Golden Armor",
         "price": 220,
@@ -72,6 +76,7 @@ ITEMS = {
         "consumable": False,
         "category": "battle"
     },
+
     "dragon_blade": {
         "name": "🐉 Dragon Blade",
         "price": 600,
@@ -96,6 +101,7 @@ ITEMS = {
         "consumable": True,
         "category": "battle"
     },
+
     "mega_potion": {
         "name": "💊 Mega Potion",
         "price": 80,
@@ -120,6 +126,7 @@ ITEMS = {
         "consumable": True,
         "category": "minigame"
     },
+
     "luck_boost": {
         "name": "🍀 Luck Boost",
         "price": 80,
@@ -129,11 +136,11 @@ ITEMS = {
         "hp": 0,
         "consumable": True,
         "category": "minigame"
-    }
-}
- # -----------------
-    # SHIELD (PROTECTION)
-    # -----------------
+    },
+
+    # =====================
+    # ABILITY ITEMS
+    # =====================
     "shield": {
         "name": "🛡 Shield",
         "price": 60,
@@ -142,15 +149,13 @@ ITEMS = {
         "defense": 0,
         "hp": 0,
         "consumable": True,
+        "category": "minigame",
         "ability": {
             "ignore_mistake": 1
         },
-        "desc": "Ignore 1 wrong answer / bomb blast"
+        "desc": "Ignore 1 wrong answer or bomb blast"
     },
 
-    # -----------------
-    # LUCKY CHARM (NERFED)
-    # -----------------
     "lucky_charm": {
         "name": "🍀 Lucky Charm",
         "price": 90,
@@ -159,16 +164,14 @@ ITEMS = {
         "defense": 0,
         "hp": 0,
         "consumable": True,
+        "category": "minigame",
         "ability": {
             "hint": True,
-            "range_reduce": 0.25  # only 25% hint (balanced)
+            "range_reduce": 0.25
         },
-        "desc": "Get a small hint in Guess / Roulette"
+        "desc": "Small hint in Guess / Roulette"
     },
 
-    # -----------------
-    # SPEED BOOST
-    # -----------------
     "speed_boost": {
         "name": "⚡ Speed Boost",
         "price": 120,
@@ -177,15 +180,13 @@ ITEMS = {
         "defense": 0,
         "hp": 0,
         "consumable": True,
+        "category": "minigame",
         "ability": {
-            "reaction_bonus": 0.5  # seconds advantage
+            "reaction_bonus": 0.5
         },
         "desc": "Faster reaction in TypeFast / React"
     },
 
-    # -----------------
-    # BOMB DEFUSER
-    # -----------------
     "bomb_defuser": {
         "name": "🧯 Bomb Defuser",
         "price": 70,
@@ -194,15 +195,13 @@ ITEMS = {
         "defense": 0,
         "hp": 0,
         "consumable": True,
+        "category": "minigame",
         "ability": {
             "defuse_bomb": 1
         },
-        "desc": "Survive 1 bomb explosion"
+        "desc": "Survive one bomb explosion"
     },
 
-    # -----------------
-    # VIP STATUS
-    # -----------------
     "vip": {
         "name": "👑 VIP Pass",
         "price": 250,
@@ -211,11 +210,11 @@ ITEMS = {
         "defense": 0,
         "hp": 0,
         "consumable": False,
+        "category": "minigame",
         "ability": {
             "coin_bonus": 5,
             "highlight": True
         },
-        "desc": "Extra coins on win + VIP highlight"
+        "desc": "Extra coins + VIP highlight"
     }
-
 }
