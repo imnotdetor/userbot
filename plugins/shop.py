@@ -12,21 +12,6 @@ from utils.logger import log_error
 PLUGIN_NAME = "shop.py"
 mark_plugin_loaded(PLUGIN_NAME)
 
-AUTO_DEL = 30  # seconds
-
-# =====================
-# AUTO DELETE HELPER
-# =====================
-async def auto_reply(e, text):
-    try:
-        await e.delete()  # delete command instantly
-    except:
-        pass
-
-    m = await e.reply(text)
-    await asyncio.sleep(AUTO_DEL)
-    await m.delete()
-
 # =====================
 # HELP
 # =====================
@@ -35,19 +20,31 @@ register_help(
     ".coins\n"
     ".shop\n"
     ".buy <item_id>\n"
-    ".inventory\n"
-    ".use <item_id>\n\n"
+    ".inventory\n\n"
     "• One global shop\n"
-    "• Minigames + Battle items\n"
+    "• Minigames + Battle items"
 )
+
+# =====================
+# AUTO DELETE HELPER
+# =====================
+async def auto_delete(msg, delay):
+    await asyncio.sleep(delay)
+    await msg.delete()
 
 # =====================
 # COINS
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.coins$"))
 async def coins(e):
-    c = get_coins(e.sender_id)
-    await auto_reply(e, f"💰 **Your Coins:** `{c}`")
+    try:
+        c = get_coins(e.sender_id)
+        m = await e.reply(f"💰 **Your Coins:** `{c}`")
+        asyncio.create_task(auto_delete(m, 7))
+
+    except Exception as ex:
+        mark_plugin_error(PLUGIN_NAME, ex)
+        await log_error(bot, PLUGIN_NAME, ex)
 
 # =====================
 # SHOP
@@ -78,7 +75,8 @@ async def shop(e):
 
                     text += "\n"
 
-        await auto_reply(e, text)
+        m = await e.reply(text)
+        asyncio.create_task(auto_delete(m, 30))
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
@@ -94,27 +92,30 @@ async def buy(e):
         item = ITEMS.get(item_id)
 
         if not item:
-            await auto_reply(e, "❌ Item not found")
+            m = await e.reply("❌ Item not found")
+            asyncio.create_task(auto_delete(m, 7))
             return
 
         price = item["price"]
 
         if not spend(e.sender_id, price):
-            await auto_reply(e, "❌ Not enough coins")
+            m = await e.reply("❌ Not enough coins")
+            asyncio.create_task(auto_delete(m, 7))
             return
 
         data, player = get_player(e.sender_id, e.sender.first_name)
         inv = player.setdefault("items", {})
         inv[item_id] = inv.get(item_id, 0) + 1
+
         save_players(data)
 
-        await auto_reply(
-            e,
+        m = await e.reply(
             f"✅ **Item Purchased!**\n\n"
             f"{item['name']}\n"
             f"💰 Spent: `{price}`\n"
             f"🎒 Added to inventory"
         )
+        asyncio.create_task(auto_delete(m, 7))
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
