@@ -1,5 +1,4 @@
-import json
-import os
+import json, os
 
 DB = "utils/players.json"
 
@@ -15,9 +14,13 @@ def load_players():
 # =====================
 # SAVE
 # =====================
-def save_players(data):
+def save(data):
     with open(DB, "w") as f:
         json.dump(data, f, indent=2)
+
+# (optional alias – backward safe)
+def save_players(data):
+    save(data)
 
 # =====================
 # GET PLAYER
@@ -34,8 +37,9 @@ def get_player(uid, name):
             "xp": 0,
             "attack": 10,
             "defense": 8,
-            "hp": 100
+            "hp": 100,
+            "items": {}
         }
-        save_players(data)   # ✅ FIXED
+        save(data)
 
     return data, data[uid]
