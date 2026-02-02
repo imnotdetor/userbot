@@ -27,6 +27,6 @@ def get_player(uid, name):
             "hp": 100,
             "items": {}
         }
-        save_players(data)
+        save(data)
 
     return data, data[uid]
