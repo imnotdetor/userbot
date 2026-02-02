@@ -49,15 +49,26 @@ async def shop(e):
                 if item.get("category") == cat:
                     text += (
                         f"{item['name']}\n"
-                        f"🆔 `{key}` | 💰 {item['price']} | ⭐ {item['rarity']}\n\n"
+                        f"🆔 `{key}` | 💰 {item['price']} | ⭐ {item['rarity']}\n"
                     )
+
+                    # 🔥 DESCRIPTION (ADD)
+                    if item.get("desc"):
+                        text += f"📜 {item['desc']}\n"
+
+                    # 🔥 ABILITIES (ADD)
+                    if item.get("ability"):
+                        text += "✨ **Abilities:**\n"
+                        for ab, val in item["ability"].items():
+                            text += f" • `{ab}` → `{val}`\n"
+
+                    text += "\n"
 
         await e.reply(text)
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
         await log_error(bot, PLUGIN_NAME, ex)
-
 # =====================
 # BUY ITEM
 # =====================
