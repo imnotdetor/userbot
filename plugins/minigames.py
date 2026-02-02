@@ -4,6 +4,7 @@ import time
 from telethon import events
 
 from userbot import bot
+from utils.owner import is_owner
 from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 from utils.logger import log_error
 
@@ -11,27 +12,39 @@ PLUGIN_NAME = "minigames.py"
 mark_plugin_loaded(PLUGIN_NAME)
 
 # =====================
-# GAME STORAGE
+# ACTIVE GAMES
 # =====================
 active_guess_games = {}
 # key = message_id
-# value = {"number": int, "end": timestamp}
+# value = {number, end}
 
 # =====================
-# START GUESS GAME
+# START GUESS (OWNER ONLY)
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.guess$"))
+@bot.on(events.NewMessage(pattern=r"\.guess(?: (\d+) (\d+))?$"))
 async def start_guess(e):
+    if not is_owner(e):
+        return  # 🔒 owner only
+
     try:
         await e.delete()
 
-        number = random.randint(1, 10)
-        end_time = time.time() + 30  # 30 sec
+        # range
+        if e.pattern_match.group(1):
+            low = int(e.pattern_match.group(1))
+            high = int(e.pattern_match.group(2))
+            if low >= high:
+                return
+        else:
+            low, high = 1, 10
+
+        number = random.randint(low, high)
+        end_time = time.time() + 30
 
         msg = await e.reply(
-            "🎯 **GUESS THE NUMBER**\n\n"
-            "I'm thinking of a number between **1 and 10** 🤔\n"
-            "⏱ You have **30 seconds**\n\n"
+            f"🎯 **GUESS THE NUMBER**\n\n"
+            f"Number range: **{low} – {high}**\n"
+            f"⏱ Time limit: **30 seconds**\n\n"
             "👉 Reply to this message with your guess"
         )
 
@@ -40,15 +53,14 @@ async def start_guess(e):
             "end": end_time
         }
 
-        # auto timeout
         await asyncio.sleep(30)
 
         if msg.id in active_guess_games:
             correct = active_guess_games[msg.id]["number"]
             await msg.reply(
                 f"⏰ **TIME UP!**\n\n"
-                f"No one guessed it 😅\n"
-                f"🎯 Correct number was: `{correct}`"
+                f"❌ No one guessed it\n"
+                f"🎯 Correct number: `{correct}`"
             )
             del active_guess_games[msg.id]
 
@@ -57,7 +69,7 @@ async def start_guess(e):
         await log_error(bot, PLUGIN_NAME, ex)
 
 # =====================
-# HANDLE GUESSES (MULTIPLAYER)
+# HANDLE REPLIES (MULTIPLAYER)
 # =====================
 @bot.on(events.NewMessage)
 async def handle_guess(e):
@@ -71,17 +83,15 @@ async def handle_guess(e):
 
         game = active_guess_games[reply.id]
 
-        # time over check
+        # time over
         if time.time() > game["end"]:
-            if reply.id in active_guess_games:
-                del active_guess_games[reply.id]
+            del active_guess_games[reply.id]
             return
 
-        # number check
         try:
             guess = int(e.raw_text.strip())
         except ValueError:
-            return  # ignore non-numbers
+            return
 
         correct = game["number"]
 
@@ -89,11 +99,12 @@ async def handle_guess(e):
             await e.reply(
                 f"🎉 **CORRECT GUESS!**\n\n"
                 f"👑 Winner: **{e.sender.first_name}**\n"
-                f"🎯 Number was: `{correct}`"
+                f"🎯 Number: `{correct}`"
             )
             del active_guess_games[reply.id]
         else:
-            await e.reply(f"❌ `{guess}` is wrong!")
+            await e.reply(f"❌ `{guess}` is wrong")
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
+        await log_error(bot, PLUGIN_NAME, ex)
