@@ -222,61 +222,87 @@ async def bomb_game(e):
     }
 
 # =====================
-# UNIVERSAL HANDLER
+# UNIVERSAL HANDLER (FIXED)
 # =====================
 @bot.on(events.NewMessage)
 async def game_replies(e):
     if not e.is_reply:
         return
+
     try:
         r = await e.get_reply_message()
         game = active_games.get(r.id)
-        if not game or time.time() > game["end"]:
+        if not game:
             return
 
         uid = e.sender_id
         name = e.sender.first_name or "User"
         text = e.raw_text.lower().strip()
 
+        # =====================
+        # TIMED GAMES ONLY
+        # =====================
+        if "end" in game and time.time() > game["end"]:
+            return
+
+        # ===== GUESS =====
         if game["type"] == "guess" and text.isdigit():
             if int(text) == game["answer"]:
                 await e.reply(f"🏆 **WINNER:** {name}\n+10 💰")
                 add_coin(uid, name, 10)
-                del active_games[r.id]
+                active_games.pop(r.id, None)
             else:
                 await temp_reply(e.chat_id, f"❌ Wrong guess, {name}", e.id)
 
+        # ===== ROULETTE =====
         elif game["type"] == "roulette" and text.isdigit():
             if int(text) == game["answer"]:
                 await e.reply(f"🎰 **WINNER:** {name}\n+10 💰")
                 add_coin(uid, name, 10)
-                del active_games[r.id]
+                active_games.pop(r.id, None)
 
+        # ===== MATH =====
         elif game["type"] == "math" and text.isdigit():
             if int(text) == game["answer"]:
                 await e.reply(f"➕ **WINNER:** {name}\n+10 💰")
                 add_coin(uid, name, 10)
-                del active_games[r.id]
+                active_games.pop(r.id, None)
 
+        # ===== TYPE FAST =====
         elif game["type"] == "type" and text == game["answer"]:
             await e.reply(f"⌨️ **FASTEST:** {name}\n+10 💰")
             add_coin(uid, name, 10)
-            del active_games[r.id]
+            active_games.pop(r.id, None)
 
-        elif game["type"] == "react" and text == game["emoji"]:
-            await e.reply(f"⚡ **FASTEST:** {name}\n+10 💰")
-            add_coin(uid, name, 10)
-            del active_games[r.id]
-
+        # ===== SPIN =====
         elif game["type"] == "spin":
             if uid not in {u for u, _ in game["players"]}:
                 game["players"].add((uid, name))
                 await temp_reply(e.chat_id, f"✅ {name} joined", e.id)
 
-        elif game["type"] == "bomb":
-            if uid not in game["choices"] and text in ("red", "blue", "yellow"):
-                game["choices"][uid] = (name, text)
-                await temp_reply(e.chat_id, f"🔧 {name} selected `{text}`", e.id)
+        # =====================
+        # 💣 BOMB (INSTANT BLAST MODE)
+        # =====================
+        elif game["type"] == "bomb" and text in ("red", "blue", "yellow"):
+
+            # ❌ already tried
+            if uid in game["played"]:
+                return
+
+            game["played"].add(uid)
+
+            # 🧯 REAL SAFE
+            if text == game["safe"]:
+                await e.reply(f"🧯 **SAFE!** {name} cut `{text}`\n+10 💰")
+                add_coin(uid, name, 10)
+
+            # 😈 FAKE SAFE (TROLL)
+            elif game["fake"] and text == game["fake"]:
+                await e.reply(f"😈 **TROLLED!** {name} trusted fake `{text}` 💥")
+
+            # 💥 BLAST
+            else:
+                await e.reply(f"💥 **BOOM!** {name} cut `{text}`")
 
     except Exception as ex:
         mark_plugin_error(PLUGIN_NAME, ex)
