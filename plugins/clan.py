@@ -10,6 +10,7 @@ from utils.owner import is_owner
 from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 from utils.logger import log_error
 from utils.help_registry import register_help
+from utils.plugin_control import is_enabled
 
 PLUGIN_NAME = "clan.py"
 DB_FILE = "utils/clans.json"
@@ -21,7 +22,7 @@ mark_plugin_loaded(PLUGIN_NAME)
 # =====================
 register_help(
     "clan",
-    ".clan create <name>\n"
+    ". clan create <name>\n"
     ".clan join <name>\n"
     ".clan leave\n"
     ".clan info\n"
