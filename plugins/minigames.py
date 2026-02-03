@@ -188,7 +188,7 @@ async def typefast_game(e):
         del active_games[msg.id]
 
 # =====================
-# 💣 BOMB GAME (WIRES)
+# 💣 BOMB GAME (CUT WIRES + FAKE)
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.bomb$"))
 async def bomb_game(e):
@@ -196,66 +196,63 @@ async def bomb_game(e):
         return
 
     await e.delete()
-    safe_wire = random.choice(["red", "blue", "yellow"])
+
+    wires = ["red", "blue", "yellow"]
+    safe_wire = random.choice(wires)
+
+    # 😈 40% chance fake wire
+    fake_wire = None
+    if random.random() < 0.4:
+        fake_wire = random.choice([w for w in wires if w != safe_wire])
 
     msg = await e.reply(
-        "💣 **BOMB WIRES** 💣\n\n"
+        "💣 **CUT THE WIRE** 💣\n\n"
         "🔴 red\n🔵 blue\n🟡 yellow\n\n"
-        f"⏱ {GAME_TIME}s\nReply with wire name"
+        "✂️ Type: `cut <color>`\n"
+        f"⏱ {GAME_TIME}s"
     )
 
     active_games[msg.id] = {
         "type": "bomb",
         "safe": safe_wire,
-        "choices": {},
-        "end": time.time() + GAME_TIME
+        "fake": fake_wire,
+        "choices": {},   # uid -> (name, wire)
+        "end": time.time() + GAME_TIME,
+        "chat": e.chat_id
     }
 
     await asyncio.sleep(GAME_TIME)
+
     game = active_games.pop(msg.id, None)
     if not game:
         return
 
-    blasted, safe = [], []
+    blasted, saved, trolled = [], [], []
 
     for uid, (name, wire) in game["choices"].items():
         if wire == game["safe"]:
-            safe.append(f"• {name} ({wire})")
+            saved.append(f"• {name} ({wire})")
             add_coin(uid, name, 10)
+
+        elif game["fake"] and wire == game["fake"]:
+            trolled.append(f"• {name} ({wire}) 😈")
+
         else:
             blasted.append(f"• {name} ({wire})")
 
-    text = "💣 **BOMB RESULT** 💣\n\n"
-    text += "💥 **BLASTED:**\n" + ("\n".join(blasted) if blasted else "• None") + "\n\n"
-    text += "🧯 **SAFE:**\n" + ("\n".join(safe) if safe else "• None")
-
-    await msg.reply(text)
-
-# =====================
-# REACT FAST
-# =====================
-@bot.on(events.NewMessage(pattern=r"\.react$"))
-async def react_game(e):
-    if not is_owner(e):
-        return
-
-    await e.delete()
-    emoji = random.choice(["🔥", "⚡", "💀", "😈"])
-
-    msg = await e.reply(
-        f"⚡ **REACT FAST**\n\nSend:\n{emoji}"
+    text = (
+        "💣 **BOMB RESULT** 💣\n\n"
+        f"🧯 **REAL SAFE:** `{game['safe']}`\n"
     )
 
-    active_games[msg.id] = {
-        "type": "react",
-        "emoji": emoji,
-        "end": time.time() + GAME_TIME
-    }
+    if game["fake"]:
+        text += f"😈 **FAKE SAFE:** `{game['fake']}`\n"
 
-    await asyncio.sleep(GAME_TIME)
-    if msg.id in active_games:
-        await msg.reply("⏰ Too slow!")
-        del active_games[msg.id]
+    text += "\n💥 **BLASTED:**\n" + ("\n".join(blasted) if blasted else "• None")
+    text += "\n\n😈 **TROLLED:**\n" + ("\n".join(trolled) if trolled else "• None")
+    text += "\n\n🧯 **SAFE:**\n" + ("\n".join(saved) if saved else "• None")
+
+    await msg.reply(text)
 
 # =====================
 # UNIVERSAL HANDLER
