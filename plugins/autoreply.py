@@ -91,11 +91,13 @@ def save_list(k, data):
 async def resolve_user(e):
     if e.is_reply:
         r = await e.get_reply_message()
-        return r.sender_id
+        return r.sender_id if r else None
 
-    arg = (e.pattern_match.group(1) or "").strip()
-    if not arg:
+    parts = e.raw_text.split(maxsplit=1)
+    if len(parts) < 2:
         return None
+
+    arg = parts[1].strip()
 
     if arg.isdigit():
         return int(arg)
@@ -157,7 +159,7 @@ async def _(e):
     m = await e.respond(
         f"Autoreply {'Enabled' if state=='on' else 'Disabled'} ✅"
     )
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     await m.delete()
 
 
@@ -187,7 +189,7 @@ async def _(e):
     set_var("AUTOREPLY_DELAY", e.pattern_match.group(1))
     await e.delete()
     m = await e.respond("Delay updated ⏱")
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     await m.delete()
 
 
@@ -198,7 +200,7 @@ async def _(e):
     set_var("AR_COOLDOWN", e.pattern_match.group(1))
     await e.delete()
     m = await e.respond("Cooldown updated ⏳")
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     await m.delete()
 
 
@@ -214,7 +216,7 @@ async def _(e):
     set_var(keymap[e.pattern_match.group(1)], e.pattern_match.group(2))
     await e.delete()
     m = await e.respond("Setting updated ✅")
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     await m.delete()
 
 
@@ -229,7 +231,7 @@ async def _(e):
     set_var("AR_FIRST_TEXT", text)
     await e.delete()
     m = await e.respond("First reply text updated ✨")
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     await m.delete()
 
 
@@ -241,14 +243,14 @@ async def _(e):
     set_var(f"AUTOREPLY_{e.pattern_match.group(1).upper()}", text)
     await e.delete()
     m = await e.respond(f"{e.pattern_match.group(1).title()} reply updated ✅")
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     await m.delete()
 
 
 # =====================
 # WHITELIST / BLACKLIST (PATCHED)
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.a(white|black)list(?: .+)?$"))
+@bot.on(events.NewMessage(pattern=r"\.a(white|black)list\s+(.+)$"))
 async def _(e):
     if not is_owner(e):
         return
@@ -256,7 +258,7 @@ async def _(e):
     if not uid:
         await e.delete()
         m = await e.respond("❌ User not found")
-        await asyncio.sleep(2)
+        await asyncio.sleep(3)
         await m.delete()
         return
 
@@ -269,7 +271,7 @@ async def _(e):
 
     await e.delete()
     m = await e.respond("User added ✅")
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     await m.delete()
 
 
@@ -281,7 +283,7 @@ async def _(e):
     if not uid:
         await e.delete()
         m = await e.respond("❌ User not found")
-        await asyncio.sleep(2)
+        await asyncio.sleep(3)
         await m.delete()
         return
 
@@ -294,10 +296,37 @@ async def _(e):
 
     await e.delete()
     m = await e.respond("User removed 🗑")
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     await m.delete()
 
+@bot.on(events.NewMessage(pattern=r"\.a(white|black)list list$"))
+async def list_users(e):
+    if not is_owner(e):
+        return
 
+    key = "AUTOREPLY_WHITELIST" if "white" in e.raw_text else "AUTOREPLY_BLACKLIST"
+    users = get_list(key)
+
+    await e.delete()
+
+    if not users:
+        m = await e.respond("📭 List empty")
+        await asyncio.sleep(3)
+        await m.delete()
+        return
+
+    text = "📃 **USER LIST**\n\n"
+    for uid in users:
+        try:
+            u = await bot.get_entity(uid)
+            uname = f"@{u.username}" if u.username else ""
+            text += f"• {u.first_name or 'User'} {uname} (`{uid}`)\n"
+        except:
+            text += f"• `{uid}`\n"
+
+    m = await e.respond(text)
+    await asyncio.sleep(5)
+    await m.delete()
 # =====================
 # AUTOREPLY CORE (BOT FILTER FIXED)
 # =====================
