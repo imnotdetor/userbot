@@ -1,5 +1,3 @@
-# plugins/autoreply.py
-
 import asyncio
 from datetime import datetime, timedelta
 from telethon import events
@@ -10,7 +8,7 @@ from utils.logger import log_error
 from utils.help_registry import register_help
 from utils.mongo import settings
 
-print("✔ autoreply.py loaded (SMART v2 + SEEN ONLY + COMPAT + FIXED)")
+print("✔ autoreply.py loaded (SMART V3 • FULL • FIXED)")
 
 # =====================
 # HELP
@@ -18,14 +16,14 @@ print("✔ autoreply.py loaded (SMART v2 + SEEN ONLY + COMPAT + FIXED)")
 register_help(
     "autoreply",
     ".autoreply on|off\n"
+    ".autoreply status\n"
     ".autoreplydelay <sec>\n"
-    ".autocooldown <sec>\n"
-    ".autoreply status\n\n"
-    ".seenonly on|off\n\n"
-    ".officehours on|off\n"
-    ".officehours set <start>-<end>\n\n"
+    ".autocooldown <sec>\n\n"
+    ".seenonly on|off\n"
     ".firstreply on|off\n"
     ".autodisable on|off\n\n"
+    ".officehours on|off\n"
+    ".officehours set <start>-<end>\n\n"
     ".setmorning TEXT\n"
     ".setafternoon TEXT\n"
     ".setevening TEXT\n"
@@ -35,19 +33,16 @@ register_help(
     ".awhitelistdel (reply)\n"
     ".ablacklistdel (reply)\n\n"
     ".keyword add <word> | <reply>\n"
+    ".keyword del <word>\n"
+    ".keyword list\n\n"
     ".scamfilter on|off\n"
-    ".scamword add <word>\n\n"
+    ".scamword add <word>\n"
+    ".scamword del <word>\n"
+    ".scamword list\n\n"
     "• DM only\n"
     "• Owner only\n"
-    "• Old behaviour preserved"
+    "• Mongo persistent"
 )
-
-# =====================
-# MEMORY
-# =====================
-LAST_AUTOREPLY = {}
-LAST_REPLY_TIME = {}
-DISABLED_USERS = set()
 
 # =====================
 # DEFAULT TEXTS
@@ -62,31 +57,43 @@ TIME_TEXTS = {
 FIRST_REPLY_TEXT = "👋 Hi! Thanks for messaging.\nI’ll reply shortly."
 
 # =====================
-# DB HELPERS
+# DB HELPERS (DUAL KEY)
 # =====================
-def get_var(k, d=None):
-    doc = settings.find_one({"_id": k})
-    return doc["value"] if doc else d
+def get_var(*keys, default=None):
+    for k in keys:
+        d = settings.find_one({"_id": k})
+        if d:
+            return d["value"]
+    return default
 
 def set_var(k, v):
     settings.update_one({"_id": k}, {"$set": {"value": v}}, upsert=True)
 
 def get_list(k):
-    raw = get_var(k, "")
-    return [int(x) for x in raw.split(",") if x.isdigit()]
+    raw = get_var(k, default="")
+    return [int(x) for x in raw.split(",") if x.strip().isdigit()]
 
 def save_list(k, data):
     set_var(k, ",".join(str(x) for x in data))
 
+def get_str_list(k):
+    raw = get_var(k, default="")
+    return [x.strip().lower() for x in raw.split(",") if x.strip()]
+
+def save_str_list(k, data):
+    set_var(k, ",".join(data))
+
 # =====================
 # FLAGS
 # =====================
-def enabled(): return get_var("AUTOREPLY_ON", "off") == "on"
-def cooldown(): return int(get_var("AR_COOLDOWN", "0"))
-def seen_only(): return get_var("AR_SEENONLY", "off") == "on"
-def firstreply(): return get_var("AR_FIRST", "off") == "on"
-def autodisable(): return get_var("AR_AUTODISABLE", "off") == "on"
-def scamfilter(): return get_var("AR_SCAM", "off") == "on"
+def enabled(): return get_var("AUTOREPLY_ON", "AR_ON", default="off") == "on"
+def cooldown(): return int(get_var("AR_COOLDOWN", default="0"))
+def delay(): return int(get_var("AUTOREPLY_DELAY", default="0"))
+def seen_only(): return get_var("AR_SEENONLY", default="off") == "on"
+def firstreply(): return get_var("AR_FIRST", default="off") == "on"
+def autodisable(): return get_var("AR_AUTODISABLE", default="off") == "on"
+def scamfilter(): return get_var("AR_SCAM", default="off") == "on"
+def office_on(): return get_var("AR_OFFICE", default="off") == "on"
 
 # =====================
 # TIME TEXT
@@ -94,12 +101,25 @@ def scamfilter(): return get_var("AR_SCAM", "off") == "on"
 def time_text():
     h = (datetime.utcnow() + timedelta(hours=5, minutes=30)).hour
     if 5 <= h <= 11:
-        return get_var("AUTOREPLY_MORNING", TIME_TEXTS["morning"])
+        return get_var("AUTOREPLY_MORNING", "AR_MORNING", default=TIME_TEXTS["morning"])
     if 12 <= h <= 16:
-        return get_var("AUTOREPLY_AFTERNOON", TIME_TEXTS["afternoon"])
+        return get_var("AUTOREPLY_AFTERNOON", "AR_AFTERNOON", default=TIME_TEXTS["afternoon"])
     if 17 <= h <= 20:
-        return get_var("AUTOREPLY_EVENING", TIME_TEXTS["evening"])
-    return get_var("AUTOREPLY_NIGHT", TIME_TEXTS["night"])
+        return get_var("AUTOREPLY_EVENING", "AR_EVENING", default=TIME_TEXTS["evening"])
+    return get_var("AUTOREPLY_NIGHT", "AR_NIGHT", default=TIME_TEXTS["night"])
+
+# =====================
+# OFFICE HOURS
+# =====================
+def in_office_hours():
+    if not office_on():
+        return True
+    rng = get_var("AR_OFFICE_RANGE", default="")
+    if "-" not in rng:
+        return True
+    s, e = rng.split("-")
+    h = (datetime.utcnow() + timedelta(hours=5, minutes=30)).hour
+    return int(s) <= h <= int(e)
 
 # =====================
 # OWNER COMMANDS
@@ -108,6 +128,23 @@ def time_text():
 async def _(e):
     if not is_owner(e): return
     set_var("AUTOREPLY_ON", e.pattern_match.group(1))
+    set_var("AR_ON", e.pattern_match.group(1))
+    await e.delete()
+
+@bot.on(events.NewMessage(pattern=r"\.autoreply status"))
+async def _(e):
+    if not is_owner(e): return
+    txt = f"""**AutoReply Status**
+ON: `{enabled()}`
+Cooldown: `{cooldown()}s`
+Delay: `{delay()}s`
+SeenOnly: `{seen_only()}`
+FirstReply: `{firstreply()}`
+AutoDisable: `{autodisable()}`
+OfficeHours: `{office_on()}`
+ScamFilter: `{scamfilter()}`
+"""
+    await e.reply(txt)
     await e.delete()
 
 @bot.on(events.NewMessage(pattern=r"\.autoreplydelay (\d+)"))
@@ -122,10 +159,23 @@ async def _(e):
     set_var("AR_COOLDOWN", e.pattern_match.group(1))
     await e.delete()
 
-@bot.on(events.NewMessage(pattern=r"\.seenonly (on|off)"))
+@bot.on(events.NewMessage(pattern=r"\.(seenonly|firstreply|autodisable|scamfilter|officehours) (on|off)"))
 async def _(e):
     if not is_owner(e): return
-    set_var("AR_SEENONLY", e.pattern_match.group(1))
+    key = {
+        "seenonly": "AR_SEENONLY",
+        "firstreply": "AR_FIRST",
+        "autodisable": "AR_AUTODISABLE",
+        "scamfilter": "AR_SCAM",
+        "officehours": "AR_OFFICE"
+    }[e.pattern_match.group(1)]
+    set_var(key, e.pattern_match.group(2))
+    await e.delete()
+
+@bot.on(events.NewMessage(pattern=r"\.officehours set (\d+)-(\d+)"))
+async def _(e):
+    if not is_owner(e): return
+    set_var("AR_OFFICE_RANGE", f"{e.pattern_match.group(1)}-{e.pattern_match.group(2)}")
     await e.delete()
 
 @bot.on(events.NewMessage(pattern=r"\.set(morning|afternoon|evening|night) (.+)"))
@@ -136,28 +186,37 @@ async def _(e):
     await e.delete()
 
 # =====================
-# WHITELIST / BLACKLIST
+# KEYWORDS
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.a(white|black)list$"))
+@bot.on(events.NewMessage(pattern=r"\.keyword add (.+?) \| (.+)"))
 async def _(e):
-    if not is_owner(e) or not e.is_reply: return
-    r = await e.get_reply_message()
-    key = "AUTOREPLY_WHITELIST" if "white" in e.raw_text else "AUTOREPLY_BLACKLIST"
-    data = get_list(key)
-    if r.sender_id not in data:
-        data.append(r.sender_id)
-        save_list(key, data)
+    if not is_owner(e): return
+    data = dict(settings.find_one({"_id": "AR_KEYWORDS"}) or {}).get("value", {})
+    data[e.pattern_match.group(1).lower()] = e.pattern_match.group(2)
+    set_var("AR_KEYWORDS", data)
     await e.delete()
 
-@bot.on(events.NewMessage(pattern=r"\.a(white|black)listdel$"))
+@bot.on(events.NewMessage(pattern=r"\.keyword del (.+)"))
 async def _(e):
-    if not is_owner(e) or not e.is_reply: return
-    r = await e.get_reply_message()
-    key = "AUTOREPLY_WHITELIST" if "white" in e.raw_text else "AUTOREPLY_BLACKLIST"
-    data = get_list(key)
-    if r.sender_id in data:
-        data.remove(r.sender_id)
-        save_list(key, data)
+    if not is_owner(e): return
+    data = dict(settings.find_one({"_id": "AR_KEYWORDS"}) or {}).get("value", {})
+    data.pop(e.pattern_match.group(1).lower(), None)
+    set_var("AR_KEYWORDS", data)
+    await e.delete()
+
+# =====================
+# SCAM WORDS
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.scamword (add|del) (.+)"))
+async def _(e):
+    if not is_owner(e): return
+    words = get_str_list("AR_SCAMWORDS")
+    w = e.pattern_match.group(2).lower()
+    if e.pattern_match.group(1) == "add" and w not in words:
+        words.append(w)
+    if e.pattern_match.group(1) == "del" and w in words:
+        words.remove(w)
+    save_str_list("AR_SCAMWORDS", words)
     await e.delete()
 
 # =====================
@@ -173,7 +232,7 @@ async def autoreply(e):
         if sender and sender.bot:
             return
 
-        if not enabled():
+        if not enabled() or not in_office_hours():
             return
 
         uid = e.sender_id
@@ -185,19 +244,42 @@ async def autoreply(e):
         if wl and uid not in wl:
             return
 
-        if seen_only():
-            await bot.send_read_acknowledge(e.chat_id)
-            return
-
         now = datetime.utcnow()
-        if uid in LAST_REPLY_TIME and (now - LAST_REPLY_TIME[uid]).seconds < cooldown():
+        last = get_var(f"AR_LAST_{uid}")
+
+        if last:
+            diff = (now - datetime.fromisoformat(last)).total_seconds()
+            if diff < cooldown():
+                return
+
+        if seen_only() and e.is_unread:
             return
 
-        msg = FIRST_REPLY_TEXT if firstreply() and uid not in LAST_REPLY_TIME else time_text()
+        if scamfilter():
+            text = (e.raw_text or "").lower()
+            for w in get_str_list("AR_SCAMWORDS"):
+                if w in text:
+                    return
 
-        await asyncio.sleep(int(get_var("AUTOREPLY_DELAY", "0")))
-        LAST_AUTOREPLY[uid] = await e.reply(msg)
-        LAST_REPLY_TIME[uid] = now
+        keywords = dict(settings.find_one({"_id": "AR_KEYWORDS"}) or {}).get("value", {})
+        for k, r in keywords.items():
+            if k in (e.raw_text or "").lower():
+                await asyncio.sleep(delay())
+                await e.reply(r)
+                return
+
+        if firstreply() and not last:
+            msg = FIRST_REPLY_TEXT
+        else:
+            msg = time_text()
+
+        await asyncio.sleep(delay())
+        await e.reply(msg)
+
+        set_var(f"AR_LAST_{uid}", now.isoformat())
+
+        if autodisable():
+            save_list("AUTOREPLY_BLACKLIST", get_list("AUTOREPLY_BLACKLIST") + [uid])
 
     except Exception as ex:
         await log_error(bot, "autoreply.py", ex)
