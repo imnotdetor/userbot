@@ -94,7 +94,7 @@ def save_list(key, data):
 # FLAGS (FIXED)
 # =====================
 def enabled():
-    return get_var_compat("AR_ON", "AUTOREPLY_ON", "off") == "on"
+    return get_var_compat("AUTOREPLY_ON", "AR_ON", "off") == "on"
 
 def cooldown():
     return int(get_var("AR_COOLDOWN", "0"))
@@ -133,9 +133,9 @@ def time_text():
     h = (datetime.utcnow() + timedelta(hours=5, minutes=30)).hour
 
     if 5 <= h <= 11:
-        return get_var_compat("AR_MORNING", "AUTOREPLY_MORNING", TIME_TEXTS["morning"])
+        return get_var_compat("AUTOREPLY_MORNING", "AR_MORNING", TIME_TEXTS["morning"])
     if 12 <= h <= 16:
-        return get_var_compat("AR_AFTERNOON", "AUTOREPLY_AFTERNOON", TIME_TEXTS["afternoon"])
+        return get_var_compat("AUTOREPLY_AFTERNOON", "AR_AFTERNOON", TIME_TEXTS["afternoon"])
     if 17 <= h <= 20:
         return get_var_compat("AR_EVENING", "AUTOREPLY_EVENING", TIME_TEXTS["evening"])
     return get_var_compat("AR_NIGHT", "AUTOREPLY_NIGHT", TIME_TEXTS["night"])
