@@ -11,7 +11,7 @@ from utils.logger import log_error
 from utils.mongo import settings
 
 PLUGIN_NAME = "autoreply.py"
-print("✔ autoreply.py loaded (SMART v2 – FINAL)")
+print("✔ autoreply.py loaded (SMART v2 – FINAL PATCHED)")
 
 # =====================
 # HELP
@@ -39,17 +39,16 @@ register_help(
     ".ablacklistdel (reply/user/id)\n"
     ".ablacklist list\n\n"
     "• DM only\n"
-    "• Owner only\n"
-    "• Mongo based (restart safe)\n"
+    "• Mongo based\n"
     "• Smart v2 (stable)"
 )
 
 # =====================
-# MEMORY (RUNTIME)
+# RUNTIME MEMORY
 # =====================
-LAST_REPLY_TIME = {}      # uid -> datetime
-LAST_AUTOREPLY = {}      # uid -> Message
-DISABLED_USERS = set()   # autodisable
+LAST_REPLY_TIME = {}     # uid -> datetime
+LAST_AUTOREPLY = {}     # uid -> Message
+DISABLED_USERS = set()
 
 # =====================
 # DEFAULT TEXTS
@@ -66,25 +65,25 @@ DEFAULT_FIRST_REPLY = "👋 Hi! Thanks for messaging.\nI’ll reply shortly."
 # =====================
 # DB HELPERS
 # =====================
-def get_var(key, default=None):
-    doc = settings.find_one({"_id": key})
-    return doc["value"] if doc else default
+def get_var(k, d=None):
+    doc = settings.find_one({"_id": k})
+    return doc["value"] if doc else d
 
-def set_var(key, value):
+def set_var(k, v):
     settings.update_one(
-        {"_id": key},
-        {"$set": {"value": value}},
+        {"_id": k},
+        {"$set": {"value": v}},
         upsert=True
     )
 
-def get_list(key):
-    raw = get_var(key, "")
+def get_list(k):
+    raw = get_var(k, "")
     if not raw:
         return []
     return [int(x) for x in raw.split(",") if x.isdigit()]
 
-def save_list(key, data):
-    set_var(key, ",".join(str(x) for x in data))
+def save_list(k, data):
+    set_var(k, ",".join(str(x) for x in data))
 
 # =====================
 # UTILS
@@ -122,11 +121,9 @@ def autodisable(): return get_var("AR_AUTODISABLE", "off") == "on"
 def outside_office_hours():
     if get_var("AR_OFFICE", "off") != "on":
         return False
-
     t = get_var("AR_OFFICE_TIME")
     if not t:
         return False
-
     s, e = map(int, t.split("-"))
     h = (datetime.utcnow() + timedelta(hours=5, minutes=30)).hour
     return not (s <= h <= e)
@@ -153,30 +150,29 @@ def first_reply_text():
 @bot.on(events.NewMessage(pattern=r"\.autoreply (on|off)"))
 async def _(e):
     if not is_owner(e): return
-    set_var("AUTOREPLY_ON", e.pattern_match.group(1))
-    msg = await e.reply("✅ Autoreply updated")
-    await asyncio.sleep(3)
-    await msg.delete()
+    state = e.pattern_match.group(1)
+    set_var("AUTOREPLY_ON", state)
     await e.delete()
+    m = await e.respond(f"Autoreply {'Enabled' if state=='on' else 'Disabled'} ✅")
+    await asyncio.sleep(2)
+    await m.delete()
 
 @bot.on(events.NewMessage(pattern=r"\.autoreply status$"))
 async def _(e):
     if not is_owner(e): return
-
-    text = (
-        "📊 **AUTOREPLY STATUS**\n\n"
+    await e.delete()
+    m = await e.respond(
+        f"📊 **AUTOREPLY STATUS**\n\n"
         f"• Status: `{ 'ON' if enabled() else 'OFF' }`\n"
-        f"• Delay: `{ get_var('AUTOREPLY_DELAY', '0') } sec`\n"
+        f"• Delay: `{ get_var('AUTOREPLY_DELAY','0') } sec`\n"
         f"• Cooldown: `{ cooldown() } sec`\n"
-        f"• Seen only: `{ get_var('AR_SEENONLY', 'off').upper() }`\n"
-        f"• First reply: `{ get_var('AR_FIRST', 'off').upper() }`\n\n"
+        f"• Seen only: `{ get_var('AR_SEENONLY','off').upper() }`\n"
+        f"• First reply: `{ get_var('AR_FIRST','off').upper() }`\n\n"
         f"• Whitelist: `{ len(get_list('AUTOREPLY_WHITELIST')) }`\n"
         f"• Blacklist: `{ len(get_list('AUTOREPLY_BLACKLIST')) }`"
     )
-
-    msg = await e.reply(text)
-    await asyncio.sleep(6)
-    await msg.delete()
+    await asyncio.sleep(5)
+    await m.delete()
 
 @bot.on(events.NewMessage(pattern=r"\.autoreplydelay (\d+)"))
 async def _(e):
@@ -202,31 +198,21 @@ async def _(e):
     await e.delete()
 
 # both spellings supported
-@bot.on(events.NewMessage(pattern=r"\.setf(irst)?reply (.+)"))
+@bot.on(events.NewMessage(pattern=r"\.setf(irst)?reply"))
 async def _(e):
     if not is_owner(e): return
-    set_var("AR_FIRST_TEXT", e.pattern_match.group(2))
-    await e.delete()
-
-@bot.on(events.NewMessage(pattern=r"\.officehours (on|off)"))
-async def _(e):
-    if not is_owner(e): return
-    set_var("AR_OFFICE", e.pattern_match.group(1))
-    await e.delete()
-
-@bot.on(events.NewMessage(pattern=r"\.officehours set (\d+)-(\d+)"))
-async def _(e):
-    if not is_owner(e): return
-    set_var("AR_OFFICE_TIME", f"{e.pattern_match.group(1)}-{e.pattern_match.group(2)}")
+    text = e.raw_text.split(None, 1)[1]
+    set_var("AR_FIRST_TEXT", text)
     await e.delete()
 
 # =====================
-# SET TIME TEXT
+# SET TIME TEXT (FIXED MULTILINE)
 # =====================
-@bot.on(events.NewMessage(pattern=r"\.set(morning|afternoon|evening|night) (.+)"))
+@bot.on(events.NewMessage(pattern=r"\.set(morning|afternoon|evening|night)"))
 async def _(e):
     if not is_owner(e): return
-    set_var(f"AUTOREPLY_{e.pattern_match.group(1).upper()}", e.pattern_match.group(2))
+    text = e.raw_text.split(None, 1)[1]
+    set_var(f"AUTOREPLY_{e.pattern_match.group(1).upper()}", text)
     await e.delete()
 
 # =====================
@@ -237,7 +223,6 @@ async def _(e):
     if not is_owner(e): return
     uid = await resolve_user(e)
     if not uid: return
-
     key = "AUTOREPLY_WHITELIST" if "white" in e.raw_text else "AUTOREPLY_BLACKLIST"
     data = get_list(key)
     if uid not in data:
@@ -250,7 +235,6 @@ async def _(e):
     if not is_owner(e): return
     uid = await resolve_user(e)
     if not uid: return
-
     key = "AUTOREPLY_WHITELIST" if "white" in e.raw_text else "AUTOREPLY_BLACKLIST"
     data = get_list(key)
     if uid in data:
@@ -261,23 +245,17 @@ async def _(e):
 @bot.on(events.NewMessage(pattern=r"\.a(white|black)list list$"))
 async def _(e):
     if not is_owner(e): return
-
     key = "AUTOREPLY_WHITELIST" if "white" in e.raw_text else "AUTOREPLY_BLACKLIST"
     users = get_list(key)
-
     if not users:
         return await e.reply("📭 List empty")
-
     text = "📃 **USER LIST**\n\n"
     for uid in users:
         try:
             u = await bot.get_entity(uid)
-            name = u.first_name or "User"
-            uname = f"@{u.username}" if u.username else ""
-            text += f"• {name} {uname} (`{uid}`)\n"
+            text += f"• {u.first_name or 'User'} (`{uid}`)\n"
         except:
             text += f"• `{uid}`\n"
-
     await e.reply(text)
 
 # =====================
@@ -314,10 +292,7 @@ async def autoreply(e):
             try: await old.delete()
             except: pass
 
-        if firstreply() and uid not in LAST_REPLY_TIME:
-            text = first_reply_text()
-        else:
-            text = time_text()
+        text = first_reply_text() if (firstreply() and uid not in LAST_REPLY_TIME) else time_text()
 
         await asyncio.sleep(int(get_var("AUTOREPLY_DELAY", "0")))
         msg = await e.reply(text)
