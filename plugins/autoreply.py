@@ -8,7 +8,7 @@ from userbot import bot
 from utils.owner import is_owner
 from utils.logger import log_error
 from utils.help_registry import register_help
-from database import settings
+from utils.mongo import settings
 
 print("✔ autoreply.py loaded (SMART v2 + SEEN ONLY + COMPAT)")
 
@@ -21,6 +21,7 @@ register_help(
     ".autoreplydelay <sec>\n"
     ".autocooldown <sec>\n\n"
     ".seenonly on|off\n\n"
+    ".autoreply status\n"
     ".officehours on|off\n"
     ".officehours set <start>-<end>\n\n"
     ".firstreply on|off\n"
@@ -185,7 +186,32 @@ async def _(e):
     key = "AR_FIRST" if "first" in e.raw_text else "AR_AUTODISABLE"
     set_var(key, e.pattern_match.group(2))
     await e.delete()
+# =====================
+# AUTOREPLY STATUS
+# =====================
+@bot.on(events.NewMessage(pattern=r"\.autoreply status$"))
+async def autoreply_status(e):
+    if not is_owner(e):
+        return
 
+    status_text = (
+        "📊 **AUTOREPLY STATUS**\n\n"
+        f"• Autoreply: `{ 'ON' if enabled() else 'OFF' }`\n"
+        f"• Seen Only: `{ 'ON' if seen_only() else 'OFF' }`\n"
+        f"• Cooldown: `{ cooldown() } sec`\n"
+        f"• Delay: `{ get_var_compat('AR_DELAY', 'AUTOREPLY_DELAY', '0') } sec`\n\n"
+        f"• Office Hours: `{ get_var('AR_OFFICE', 'off').upper() }`\n"
+        f"• Office Time: `{ get_var('AR_OFFICE_TIME', 'Not set') }`\n\n"
+        f"• First Reply: `{ get_var('AR_FIRST', 'off').upper() }`\n"
+        f"• Auto Disable: `{ get_var('AR_AUTODISABLE', 'off').upper() }`\n\n"
+        f"• Keywords: `{ len(get_list('AR_KEYS')) }`\n"
+        f"• Scam Filter: `{ get_var('AR_SCAM', 'off').upper() }`\n"
+        f"• Scam Words: `{ len(get_list('AR_SCAMWORDS')) }`"
+    )
+
+    msg = await e.reply(status_text)
+    await asyncio.sleep(6)
+    await msg.delete()
 # =====================
 # KEYWORDS
 # =====================
