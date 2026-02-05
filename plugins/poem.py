@@ -51,9 +51,26 @@ async def random_poem(e):
     await e.edit("✍️ Writing a poem...")
     await asyncio.sleep(2)
 
+    owner = await e.get_sender()
+    owner_name = owner.first_name or "Owner"
+    owner_id = owner.id
+
+    signature = f"✍️ [{owner_name}](tg://user?id={owner_id})"
+
+    # Ultroid-style reply logic
+    if e.is_reply:
+        r = await e.get_reply_message()
+        if r and r.sender:
+            user_name = r.sender.first_name or "User"
+            user_id = r.sender.id
+            signature = (
+                f"✍️ [{owner_name}](tg://user?id={owner_id})"
+                f" → [{user_name}](tg://user?id={user_id})"
+            )
+
     await e.edit(
-        f"{poem}\n\n"
-        f"✍️ **{DEFAULTUSER}**"
+        f"{poem}\n\n{signature}",
+        link_preview=False
     )
 
 # =====================
@@ -61,7 +78,8 @@ async def random_poem(e):
 # =====================
 register_help(
     "poems",
-    ".poem\n\n"
-    "• Sends a random fun poem\n"
-    "• Telethon compatible"
+    ".poem (reply optional)\n\n"
+    "• Random fun poem\n"
+    "• Reply user name auto detected\n"
+    "• Safe content"
 )
