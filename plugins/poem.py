@@ -44,7 +44,7 @@ POEMS = [
     "But started to scroll… again 😭",
 ]
 
-@bot.on(events.NewMessage(pattern=r"\.dpoem$"))
+@bot.on(events.NewMessage(pattern=r"\.poem$"))
 async def random_poem(e):
     poem = random.choice(POEMS)
 
@@ -60,9 +60,8 @@ async def random_poem(e):
 # HELP
 # =====================
 register_help(
-    "poem",
-    ".dpoem\n\n"
+    "poems",
+    ".poem\n\n"
     "• Sends a random fun poem\n"
-    "• Safe & clean content\n"
     "• Telethon compatible"
 )
