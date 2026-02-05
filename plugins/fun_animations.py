@@ -4,10 +4,6 @@ from telethon import events
 from userbot import bot
 from utils.help_registry import register_help
 from utils.logger import log_error
-from utils.plugin_health import (
-    mark_plugin_loaded,
-    mark_plugin_error,
-)
 
 PLUGIN_NAME = "fun_animations.py"
 print("✔ fun_animations.py loaded (FUN v1)")
@@ -56,7 +52,6 @@ async def police_thief(e):
 
     except Exception as ex:
         await log_error(bot, PLUGIN_NAME, ex)
-        mark_plugin_error(PLUGIN_NAME, ex)
 
 # =====================
 # REALITY (REPLY BASED)
@@ -83,7 +78,6 @@ async def reality(e):
 
     except Exception as ex:
         await log_error(bot, PLUGIN_NAME, ex)
-        mark_plugin_error(PLUGIN_NAME, ex)
 
 # =====================
 # EXPERIMENT (REPLY BASED)
@@ -106,9 +100,3 @@ async def experiment(e):
 
     except Exception as ex:
         await log_error(bot, PLUGIN_NAME, ex)
-        mark_plugin_error(PLUGIN_NAME, ex)
-
-# =====================
-# HEALTH OK
-# =====================
-mark_plugin_loaded(PLUGIN_NAME)
