@@ -3,6 +3,7 @@ from telethon import events
 
 from userbot import bot
 from utils.help_registry import register_help
+from utils.plugin_status import mark_plugin_loaded, mark_plugin_error
 from utils.logger import log_error
 
 PLUGIN_NAME = "fun_animations.py"
@@ -32,10 +33,12 @@ async def police_thief(e):
             "🧍‍♂️💰  : Hehe paisa 💸",
 
             "🧍‍♂️💰  : Hehe paisa 💸\n"
-            "👮‍♂️     : OYE RUK 😡",
+            
+            "👮‍♂️     : OYE RUK 😡\n"
 
             "🏃‍♂️💰  : Pakad ke dikha 😜\n"
-            "🚓💨     : WEEE-OOO 🚨",
+            
+            "🚓💨     : WEEE-OOO 🚨\n"
 
             "😨🏃‍♂️  : Sir maaf karo 😭\n"
             "👮‍♂️🤝  : Chal thane 😈",
@@ -44,10 +47,10 @@ async def police_thief(e):
         ]
 
         for f in frames:
-            await asyncio.sleep(1)
+            await asyncio.sleep(1.3)
             await msg.edit(f)
 
-        await asyncio.sleep(3)
+        await asyncio.sleep(4)
         await msg.delete()
 
     except Exception as ex:
@@ -73,7 +76,7 @@ async def reality(e):
             "📱 Phone only"
         )
 
-        await asyncio.sleep(3)
+        await asyncio.sleep(4)
         await msg.delete()
 
     except Exception as ex:
@@ -95,7 +98,7 @@ async def experiment(e):
             "🤯 Result: **YOU**"
         )
 
-        await asyncio.sleep(3)
+        await asyncio.sleep(4)
         await msg.delete()
 
     except Exception as ex:
