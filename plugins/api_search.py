@@ -1,25 +1,28 @@
 # plugins/api_search.py
-# Generic API Search Plugin for Telethon Userbot
+# API SEARCH (Numverify) – SAFE + DISABLABLE VERSION
 
 import asyncio
 import requests
 from telethon import events
 
-from utils.plugin_control import is_disabled
 from userbot import bot
 from utils.owner import is_owner
 from utils.help_registry import register_help
 from utils.logger import log_error
+from utils.plugin_control import is_disabled
 
-PLUGIN_NAME = "api_search.py"
+PLUGIN_NAME = "api_search"
 print("✔ api_search.py loaded (API SEARCH MODE)")
 
 # =====================
-# CONFIG (CHANGE THESE)
+# CONFIG
 # =====================
-API_KEY = "17e800e335119171f811d8fea35781b3"
-API_URL = "https://apilayer.net/api/validate"  # <-- change this
+# ⚠️ Better to set this as ENV VAR
+# export NUMVERIFY_API_KEY=your_key_here
+import os
+API_KEY = os.getenv("NUMVERIFY_API_KEY")
 
+API_URL = "http://apilayer.net/api/validate"
 TIMEOUT = 15  # seconds
 
 # =====================
@@ -27,10 +30,10 @@ TIMEOUT = 15  # seconds
 # =====================
 register_help(
     "search",
-    ".search <name/number>\n\n"
-    "• Searches data using API key\n"
-    "• Supports name / number lookup\n"
-    "• External API powered"
+    ".search <number>\n\n"
+    "• Phone number lookup (Numverify)\n"
+    "• Plugin on/off supported\n"
+    "• API based search"
 )
 
 # =====================
@@ -38,57 +41,52 @@ register_help(
 # =====================
 @bot.on(events.NewMessage(pattern=r"\.search\s+(.+)"))
 async def api_search(e):
+    # 🔴 PLUGIN DISABLED CHECK
+    if is_disabled(PLUGIN_NAME):
+        return
+
     try:
         query = e.pattern_match.group(1).strip()
         if not query:
-            return await e.reply("❌ Provide something to search")
+            return await e.reply("❌ Provide a number to search")
 
-        msg = await e.reply("🔍 Searching...")
+        if not API_KEY:
+            return await e.reply("❌ API key not configured")
 
-        # ---------- API REQUEST ----------
-        headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json",
-            "User-Agent": "Telethon-Userbot"
-        }
+        msg = await e.reply("🔍 Searching number info...")
 
         params = {
-            "query": query  # API ke hisaab se change kar sakte ho
+            "access_key": API_KEY,
+            "number": query,
+            "format": 1
         }
 
-        r = requests.get(
-            API_URL,
-            headers=headers,
-            params=params,
-            timeout=TIMEOUT
-        )
+        r = requests.get(API_URL, params=params, timeout=TIMEOUT)
 
         if r.status_code != 200:
-            await msg.edit("❌ API error or invalid response")
+            await msg.edit("❌ API error (non-200 response)")
             return
 
         data = r.json()
 
-        # ---------- SAMPLE RESPONSE HANDLING ----------
-        # ⚠️ Ye part API ke response ke hisaab se change hoga
-
-        if not data or data.get("status") is False:
-            await msg.edit("❌ No data found")
+        # ❌ invalid number / API failure
+        if not data.get("valid"):
+            await msg.edit("❌ Invalid number or no data found")
             return
 
-        result = data.get("result", {})
-
-        name = result.get("name", "N/A")
-        number = result.get("number", "N/A")
-        email = result.get("email", "N/A")
-        location = result.get("location", "N/A")
+        number = data.get("international_format", "N/A")
+        country = data.get("country_name", "N/A")
+        location = data.get("location", "N/A")
+        carrier = data.get("carrier", "N/A")
+        line_type = data.get("line_type", "N/A")
 
         text = (
-            "📄 **SEARCH RESULT**\n\n"
-            f"👤 Name: `{name}`\n"
+            "📄 **NUMBER LOOKUP RESULT**\n\n"
             f"📞 Number: `{number}`\n"
-            f"📧 Email: `{email}`\n"
-            f"📍 Location: `{location}`\n\n"
+            f"🌍 Country: `{country}`\n"
+            f"📍 Location: `{location}`\n"
+            f"📡 Carrier: `{carrier}`\n"
+            f"📶 Line Type: `{line_type}`\n\n"
             f"🔎 Query: `{query}`"
         )
 
