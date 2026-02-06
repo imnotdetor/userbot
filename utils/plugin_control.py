@@ -12,6 +12,9 @@ def _load():
 def is_enabled(name: str) -> bool:
     return _load().get(name, True)
 
+def is_disabled(name: str) -> bool:
+    return not is_enabled(name)
+
 def enable(name: str):
     d = _load()
     d[name] = True
